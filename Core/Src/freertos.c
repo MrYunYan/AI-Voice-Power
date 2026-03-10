@@ -19,7 +19,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "cmsis_os2.h"
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
@@ -33,6 +32,7 @@
 #include "ina226.h"
 #include <stdint.h>
 #include <sys/_types.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -122,7 +122,9 @@ void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
- 
+ float current;
+ float power;
+
   axk_ssd1306_init();
   axk_ssd1306_set_color_turn(0);
   axk_ssd1306_set_display_turn(0);
@@ -131,14 +133,19 @@ void StartDefaultTask(void *argument)
 axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
 //初始化CH224
  if (axk_ch224_init() == 0) { 
-  axk_ch224_set_vout(AXK_CH224_VOUT_5V);
-//   axk_ch224_set_mode(AXK_CH224_VOUT_PPS);
-//  axk_ch224_set_pps_vout(5.0);
-  axk_ssd1306_show_utf8_str(24, 2, "CH224 OK");
+   axk_ssd1306_show_utf8_str(0, 2, "CH224 OK");
+
+  if (axk_ch224_set_mode(AXK_CH224_VOUT_PPS) == 0) {
+
+    axk_ch224_set_pps_vout(5.0);
+  }else {
+    axk_ch224_set_vout(AXK_CH224_VOUT_5V);
+  }
   }else {
    axk_ssd1306_show_utf8_str(24, 2, "CH224 ERROE");
      axk_ssd1306_show_utf8_str(24, 6, "I2C Cfg & HW");
-   while (1) {}
+   while (1) {//死循环停在这里
+  }
   }
 
 
@@ -154,7 +161,8 @@ INA226_Device_t my_power_monitor;
  } else {
      axk_ssd1306_show_utf8_str(24, 4, "INA226 ERROE");
      axk_ssd1306_show_utf8_str(24, 6, "I2C Cfg & HW");
-     while (1) {}
+     while (1) {//死循环停在这里
+      }
  }
 
 osDelay(2000);
@@ -162,26 +170,75 @@ axk_ssd1306_clear_screen();//初始化完成清屏
 
 
   axk_ssd1306_show_utf8_str(0, 0,"电压(V):");
-  KEY_V_value();
-  axk_ssd1306_show_utf8_str(0, 2, "电流(A):");
-  axk_ssd1306_show_utf8_str(0, 4, "功率(W):");
+  axk_ssd1306_show_utf8_str(0, 2, "电流(mA):");
+
+
+  axk_ssd1306_show_utf8_str(0, 4, "功率(mW):");
+ 
   axk_ssd1306_show_utf8_str(0, 6, "状态:");
   axk_ssd1306_show_utf8_str(48, 6, "关");
 
-
-
-
+ char buffer[10];
+ uint8_t key_num=0;
+ int8_t key_V=0;
   for(;;){
-    if(KEY_NUM()==1){
-     KEY_Output(2);
-     KEY_state();
+
+key_num=KEY_NUM();
+switch (key_num) {
+        case 1:
+            KEY_Output(2);//设置输出反转
+            KEY_state();//读取输出引脚状态并显示
+            break;
+        case 2:
+            key_V++;
+             if(key_V>4){
+              key_V=0;
+             }
+            break;
+        case 3:
+          key_V--;
+             if(key_V<0){
+              key_V=4;
+             }
+            break;
     }
-       KEY_V_value();
 
+
+
+ switch (key_V) {
+  case 0:
+    axk_ch224_set_vout(AXK_CH224_VOUT_5V);
+    axk_ssd1306_show_utf8_str(68, 0, " 5");
+    break;
+  case 1:
+    axk_ch224_set_vout(AXK_CH224_VOUT_9V);
+     axk_ssd1306_show_utf8_str(68, 0, " 9");
+    break;
+  case 2:
+    axk_ch224_set_vout(AXK_CH224_VOUT_12V);
+    axk_ssd1306_show_utf8_str(68, 0, "12");
+    break;
+  case 3:
+    axk_ch224_set_vout(AXK_CH224_VOUT_15V);
+    axk_ssd1306_show_utf8_str(68, 0, "15");
+    break;
+  case 4:
+    axk_ch224_set_vout(AXK_CH224_VOUT_20V);
+    axk_ssd1306_show_utf8_str(68, 0, "20");
+    break;
+ }
        
+        float current = INA226_GetCurrent(&my_power_monitor);
+         int32_t current_mA = (int32_t)round(current * 1000.0f);  // 1000.0f避免浮点隐式转换
+         snprintf(buffer, sizeof(buffer), "%4ld", (long)current_mA);
+        axk_ssd1306_show_utf8_str(72, 2, buffer);
 
-        
-        // osDelay(500);
+        float power = INA226_GetPower(&my_power_monitor);
+        int32_t current_w = (int32_t)round(power * 1000.0f);  // 1000.0f避免浮点隐式转换
+        snprintf(buffer, sizeof(buffer), "%4ld", (long)current_w);
+        axk_ssd1306_show_utf8_str(72, 4, buffer);
+
+         osDelay(50);
 
   }
 

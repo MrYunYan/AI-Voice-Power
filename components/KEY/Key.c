@@ -8,21 +8,32 @@
 
 uint8_t KEY_NUM(void){
 if ((HAL_GPIO_ReadPin(SwitchKey_GPIO_Port,  SwitchKey_Pin))==0) {
-osDelay(100);
+osDelay(20);
     if ((HAL_GPIO_ReadPin(SwitchKey_GPIO_Port,  SwitchKey_Pin))==0) {
+        while (HAL_GPIO_ReadPin(SwitchKey_GPIO_Port,  SwitchKey_Pin)==0)
+        {
+            osDelay(1);
+        }
    return 1;//输开关
     }
 }
-
 else if ((HAL_GPIO_ReadPin(UpKey_GPIO_Port,  UpKey_Pin))==0) {  
-    osDelay(100);
-    if ((HAL_GPIO_ReadPin(UpKey_GPIO_Port,  UpKey_Pin))==0) {  
+    osDelay(20);
+    if ((HAL_GPIO_ReadPin(UpKey_GPIO_Port,  UpKey_Pin))==0) { 
+        while (HAL_GPIO_ReadPin(UpKey_GPIO_Port,  UpKey_Pin)==0)
+          {
+            osDelay(1);
+        }
     return 2;//上调节
     }
 }
 else if ((HAL_GPIO_ReadPin(NextKey_GPIO_Port,  NextKey_Pin))==0) {  
-osDelay(100);
+osDelay(20);
     if ((HAL_GPIO_ReadPin(NextKey_GPIO_Port,  NextKey_Pin))==0) {
+        while (HAL_GPIO_ReadPin(NextKey_GPIO_Port,  NextKey_Pin)==0)
+          {
+            osDelay(1);
+        }
     return 3;//下调节
     }
 }
@@ -60,21 +71,22 @@ void KEY_state(void){
 
 
 
-float KEY_V_value(void){
-float value = 5.4;
-int int_part = (int)value;                 // 拿到 5
-int dec_part = (int)((value - int_part) * 10); // 拿到 4 (保留一位小数)
-static char buffer[10];
-   if(KEY_NUM()==2){
-    value=value+0.1;
-   //  axk_ssd1306_show_numble(64, 0, 0, 0,value);
-   } else if(KEY_NUM()==3){
-    value=value-0.1;
-   //  axk_ssd1306_show_numble(64, 0, 0, 0,value);
-  }
-  
-snprintf(buffer, sizeof(buffer), "%2d.%1d", int_part, dec_part);
-  axk_ssd1306_show_utf8_str(68, 0, buffer);
-  return value;
-}
+
+
+
+
+// uint32_t KEY_V_value(void){
+
+// static char buffer[10];
+//    if(KEY_NUM()==2){
+//     value=value+0.1;
+//    //  axk_ssd1306_show_numble(64, 0, 0, 0,value);
+//    } else if(KEY_NUM()==3){
+//     value=value-0.1;
+//    //  axk_ssd1306_show_numble(64, 0, 0, 0,value);
+//   }
+// snprintf(buffer, sizeof(buffer), "%2d.%1d", int_part, dec_part);
+//   axk_ssd1306_show_utf8_str(68, 0, buffer);
+//   return value;
+// }
 
