@@ -19,8 +19,8 @@
 #define BSP_I2C_RCC RCC_APB2Periph_GPIOB
 #define BSP_I2C_PORT GPIOB
 
-#define GPIO_SDA GPIO_PIN_6
-#define GPIO_SCL GPIO_PIN_7
+#define GPIO_SDA GPIO_PIN_7
+#define GPIO_SCL GPIO_PIN_6
 
 #define BSP_I2C_WRITE 0x00
 #define BSP_I2C_READ 0x01

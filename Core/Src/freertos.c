@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
+#include "cmsis_os2.h"
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
@@ -29,6 +30,8 @@
 #include "emMCP.h"
 #include "axk_ch224.h"
 #include "Key.h"
+#include "ina226.h"
+#include <stdint.h>
 #include <sys/_types.h>
 /* USER CODE END Includes */
 
@@ -119,25 +122,69 @@ void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
+ 
   axk_ssd1306_init();
   axk_ssd1306_set_color_turn(0);
   axk_ssd1306_set_display_turn(0);
   axk_ssd1306_clear_screen();
+
+axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
+//初始化CH224
+ if (axk_ch224_init() == 0) { 
+  axk_ch224_set_vout(AXK_CH224_VOUT_5V);
+//   axk_ch224_set_mode(AXK_CH224_VOUT_PPS);
+//  axk_ch224_set_pps_vout(5.0);
+  axk_ssd1306_show_utf8_str(24, 2, "CH224 OK");
+  }else {
+   axk_ssd1306_show_utf8_str(24, 2, "CH224 ERROE");
+     axk_ssd1306_show_utf8_str(24, 6, "I2C Cfg & HW");
+   while (1) {}
+  }
+
+
+/* 实例化一个 INA226 设备管理器 */
+INA226_Device_t my_power_monitor;
+/* 
+* 初始化 INA226
+* 假设你的硬件电路上使用的是 10 毫欧 (0.01 欧姆) 的采样电阻
+* 并且你的可调电源预计最大电流为 2.0 A
+*/
+ if (INA226_Init(&my_power_monitor, 0.01f, 2.0f) == 0) {               
+     axk_ssd1306_show_utf8_str(24, 4, "INA226  OK");
+ } else {
+     axk_ssd1306_show_utf8_str(24, 4, "INA226 ERROE");
+     axk_ssd1306_show_utf8_str(24, 6, "I2C Cfg & HW");
+     while (1) {}
+ }
+
+osDelay(2000);
+axk_ssd1306_clear_screen();//初始化完成清屏
+
+
   axk_ssd1306_show_utf8_str(0, 0,"电压(V):");
+  KEY_V_value();
   axk_ssd1306_show_utf8_str(0, 2, "电流(A):");
   axk_ssd1306_show_utf8_str(0, 4, "功率(W):");
   axk_ssd1306_show_utf8_str(0, 6, "状态:");
-  
+  axk_ssd1306_show_utf8_str(48, 6, "关");
+
+
+
+
   for(;;){
-    if(HAL_GPIO_ReadPin(SwitchKey_GPIO_Port, SwitchKey_Pin)==0){
-       osDelay(50);
-       if(HAL_GPIO_ReadPin(SwitchKey_GPIO_Port, SwitchKey_Pin)==0) {
-          HAL_GPIO_TogglePin(OutputKey_GPIO_Port, OutputKey_Pin);
-       }
-  
-  
-      }
+    if(KEY_NUM()==1){
+     KEY_Output(2);
+     KEY_state();
+    }
+       KEY_V_value();
+
+       
+
+        
+        // osDelay(500);
+
   }
+
   /* USER CODE END StartDefaultTask */
 }
 
