@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 
-uint8_t KEY_NUM(void);
+void KEY_NUM(void);
 void KEY_Output(uint8_t num); 
 void KEY_state(void);
 float KEY_V_value(void);

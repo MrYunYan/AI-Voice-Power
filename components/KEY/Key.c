@@ -4,40 +4,45 @@
 #include <stdint.h>
 #include "cmsis_os.h"
 #include "axk_ssd1306.h"//
+#include "cmsis_os2.h"
 #include "ina226.h"
 
-uint8_t KEY_NUM(void){
-if ((HAL_GPIO_ReadPin(SwitchKey_GPIO_Port,  SwitchKey_Pin))==0) {
-osDelay(20);
-    if ((HAL_GPIO_ReadPin(SwitchKey_GPIO_Port,  SwitchKey_Pin))==0) {
-        while (HAL_GPIO_ReadPin(SwitchKey_GPIO_Port,  SwitchKey_Pin)==0)
-        {
-            osDelay(1);
+extern osMessageQueueId_t BtnQueueHandle;
+void KEY_NUM(void) {
+    uint8_t btn_num = 0;
+  // 检查按键 1 (切换键)
+    if (HAL_GPIO_ReadPin(SwitchKey_GPIO_Port, SwitchKey_Pin) == GPIO_PIN_RESET) {
+        osDelay(10); // 消抖处理
+        if (HAL_GPIO_ReadPin(SwitchKey_GPIO_Port, SwitchKey_Pin) == GPIO_PIN_RESET) {
+            btn_num = 1;
+            osMessageQueuePut(BtnQueueHandle, &btn_num, 0, 0); // 建议非阻塞发送 (timeout=0)
+            while (HAL_GPIO_ReadPin(SwitchKey_GPIO_Port, SwitchKey_Pin) == GPIO_PIN_RESET) {
+                osDelay(20); // 等待松开，20ms 检查一次即可，节省 CPU
+            }
         }
-   return 1;//输开关
     }
-}
-else if ((HAL_GPIO_ReadPin(UpKey_GPIO_Port,  UpKey_Pin))==0) {  
-    osDelay(20);
-    if ((HAL_GPIO_ReadPin(UpKey_GPIO_Port,  UpKey_Pin))==0) { 
-        while (HAL_GPIO_ReadPin(UpKey_GPIO_Port,  UpKey_Pin)==0)
-          {
-            osDelay(1);
+    // 检查按键 2 (增加键)
+    else if (HAL_GPIO_ReadPin(UpKey_GPIO_Port, UpKey_Pin) == GPIO_PIN_RESET) {
+        osDelay(10);
+        if (HAL_GPIO_ReadPin(UpKey_GPIO_Port, UpKey_Pin) == GPIO_PIN_RESET) {
+            btn_num = 2;
+            osMessageQueuePut(BtnQueueHandle, &btn_num, 0, 0);
+            while (HAL_GPIO_ReadPin(UpKey_GPIO_Port, UpKey_Pin) == GPIO_PIN_RESET) {
+                osDelay(20);
+            }
         }
-    return 2;//上调节
     }
-}
-else if ((HAL_GPIO_ReadPin(NextKey_GPIO_Port,  NextKey_Pin))==0) {  
-osDelay(20);
-    if ((HAL_GPIO_ReadPin(NextKey_GPIO_Port,  NextKey_Pin))==0) {
-        while (HAL_GPIO_ReadPin(NextKey_GPIO_Port,  NextKey_Pin)==0)
-          {
-            osDelay(1);
+    // 检查按键 3 (减小键)
+    else if (HAL_GPIO_ReadPin(NextKey_GPIO_Port, NextKey_Pin) == GPIO_PIN_RESET) {
+        osDelay(10);
+        if (HAL_GPIO_ReadPin(NextKey_GPIO_Port, NextKey_Pin) == GPIO_PIN_RESET) {
+            btn_num = 3;
+            osMessageQueuePut(BtnQueueHandle, &btn_num, 0, 0);
+            while (HAL_GPIO_ReadPin(NextKey_GPIO_Port, NextKey_Pin) == GPIO_PIN_RESET) {
+                osDelay(20);
+            }
         }
-    return 3;//下调节
     }
-}
-return 0;//无按键按下
 } 
 
 
@@ -62,10 +67,10 @@ switch (num) {
 void KEY_state(void){
 
     if (HAL_GPIO_ReadPin(OutputKey_GPIO_Port,OutputKey_Pin)==GPIO_PIN_SET){
-        axk_ssd1306_show_utf8_str(48, 6, "开");
+        axk_ssd1306_show_utf8_str(92, 6, "开");
     
     } else {
-        axk_ssd1306_show_utf8_str(48, 6, "关");
+        axk_ssd1306_show_utf8_str(92, 6, "关");
     }
 }
 

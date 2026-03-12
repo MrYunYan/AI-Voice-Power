@@ -19,6 +19,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
+#include "cmsis_os2.h"
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
@@ -61,6 +62,18 @@ const osThreadAttr_t defaultTask_attributes = {
   .stack_size = 128 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for KeyTask */
+osThreadId_t KeyTaskHandle;
+const osThreadAttr_t KeyTask_attributes = {
+  .name = "KeyTask",
+  .stack_size = 128 * 4,
+  .priority = (osPriority_t) osPriorityLow,
+};
+/* Definitions for BtnQueue */
+osMessageQueueId_t BtnQueueHandle;
+const osMessageQueueAttr_t BtnQueue_attributes = {
+  .name = "BtnQueue"
+};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -68,6 +81,7 @@ const osThreadAttr_t defaultTask_attributes = {
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
+void StartKeyTask(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -93,6 +107,10 @@ void MX_FREERTOS_Init(void) {
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
+  /* Create the queue(s) */
+  /* creation of BtnQueue */
+  BtnQueueHandle = osMessageQueueNew (16, sizeof(uint8_t), &BtnQueue_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
@@ -100,6 +118,9 @@ void MX_FREERTOS_Init(void) {
   /* Create the thread(s) */
   /* creation of defaultTask */
   defaultTaskHandle = osThreadNew(StartDefaultTask, NULL, &defaultTask_attributes);
+
+  /* creation of KeyTask */
+  KeyTaskHandle = osThreadNew(StartKeyTask, NULL, &KeyTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -122,8 +143,6 @@ void StartDefaultTask(void *argument)
 {
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
- float current;
- float power;
 
   axk_ssd1306_init();
   axk_ssd1306_set_color_turn(0);
@@ -133,18 +152,17 @@ void StartDefaultTask(void *argument)
 axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
 //初始化CH224
  if (axk_ch224_init() == 0) { 
-   axk_ssd1306_show_utf8_str(0, 2, "CH224 OK");
+   axk_ssd1306_show_utf8_str(24, 2, "CH224 OK");
 
   if (axk_ch224_set_mode(AXK_CH224_VOUT_PPS) == 0) {
-
-    axk_ch224_set_pps_vout(5.0);
+    axk_ch224_set_pps_vout(9.0);
   }else {
-    axk_ch224_set_vout(AXK_CH224_VOUT_5V);
+    axk_ch224_set_vout(AXK_CH224_VOUT_9V);
   }
   }else {
    axk_ssd1306_show_utf8_str(24, 2, "CH224 ERROE");
      axk_ssd1306_show_utf8_str(24, 6, "I2C Cfg & HW");
-   while (1) {//死循环停在这里
+  while (1) {//死循环停在这里
   }
   }
 
@@ -161,8 +179,8 @@ INA226_Device_t my_power_monitor;
  } else {
      axk_ssd1306_show_utf8_str(24, 4, "INA226 ERROE");
      axk_ssd1306_show_utf8_str(24, 6, "I2C Cfg & HW");
-     while (1) {//死循环停在这里
-      }
+    //  while (1) {//死循环停在这里
+    //   }
  }
 
 osDelay(2000);
@@ -175,74 +193,104 @@ axk_ssd1306_clear_screen();//初始化完成清屏
 
   axk_ssd1306_show_utf8_str(0, 4, "功率(mW):");
  
-  axk_ssd1306_show_utf8_str(0, 6, "状态:");
-  axk_ssd1306_show_utf8_str(48, 6, "关");
+  axk_ssd1306_show_utf8_str(0, 6, "当前状态:");
+  axk_ssd1306_show_utf8_str(92, 6, "关");
 
- char buffer[10];
+char buffer[10];
  uint8_t key_num=0;
- int8_t key_V=0;
-  for(;;){
-
-key_num=KEY_NUM();
-switch (key_num) {
-        case 1:
-            KEY_Output(2);//设置输出反转
-            KEY_state();//读取输出引脚状态并显示
-            break;
-        case 2:
-            key_V++;
-             if(key_V>4){
-              key_V=0;
-             }
-            break;
-        case 3:
-          key_V--;
-             if(key_V<0){
-              key_V=4;
-             }
-            break;
+ int8_t key_V=1;
+ 
+ for(;;){
+    // 尝试从队列中获取按键消息，并把结果保存在 status 变量里
+    // 这里的 0 表示如果没有消息就立刻继续往下走，不卡在这里死等
+    osStatus_t status = osMessageQueueGet(BtnQueueHandle, &key_num, NULL, 0);
+    
+    // 只有当状态是 osOK（代表成功拿到了新的按键消息）时，才去处理按键
+    if (status == osOK) {
+        switch (key_num) {
+            case 1:
+                KEY_Output(2); // 设置输出反转
+                KEY_state();   // 读取输出引脚状态并显示
+                break;
+            case 2:
+                key_V++;       // 电压档位加 1
+                if(key_V > 4){
+                    key_V = 0;   // 如果超过最大档位，回到 0 档
+                }
+                break;
+            case 3:
+                key_V--;       // 电压档位减 1
+                if(key_V < 0){
+                    key_V = 4;   // 如果小于最小档位，循环到最大档
+                }
+                break;
+        }
+        
+        // 处理完一次按键后，立刻把按键值清零，防止下一圈循环重复触发
+        key_num = 0; 
     }
 
-
-
- switch (key_V) {
-  case 0:
-    axk_ch224_set_vout(AXK_CH224_VOUT_5V);
-    axk_ssd1306_show_utf8_str(68, 0, " 5");
-    break;
-  case 1:
-    axk_ch224_set_vout(AXK_CH224_VOUT_9V);
-     axk_ssd1306_show_utf8_str(68, 0, " 9");
-    break;
-  case 2:
-    axk_ch224_set_vout(AXK_CH224_VOUT_12V);
-    axk_ssd1306_show_utf8_str(68, 0, "12");
-    break;
-  case 3:
-    axk_ch224_set_vout(AXK_CH224_VOUT_15V);
-    axk_ssd1306_show_utf8_str(68, 0, "15");
-    break;
-  case 4:
-    axk_ch224_set_vout(AXK_CH224_VOUT_20V);
-    axk_ssd1306_show_utf8_str(68, 0, "20");
-    break;
- }
+    // 下面的代码不受按键影响，每次循环都会正常刷新屏幕和电压
+    switch (key_V) {
+        case 0:
+            axk_ch224_set_vout(AXK_CH224_VOUT_5V);         // 设置输出 5V
+            axk_ssd1306_show_utf8_str(88, 0, " 5");        // 屏幕显示 5
+            break;
+        case 1:
+            axk_ch224_set_vout(AXK_CH224_VOUT_9V);         // 设置输出 9V
+            axk_ssd1306_show_utf8_str(88, 0, " 9");        // 屏幕显示 9
+            break;
+        case 2:
+            axk_ch224_set_vout(AXK_CH224_VOUT_12V);        // 设置输出 12V
+            axk_ssd1306_show_utf8_str(88, 0, "12");        // 屏幕显示 12
+            break;
+        case 3:
+            axk_ch224_set_vout(AXK_CH224_VOUT_15V);        // 设置输出 15V
+            axk_ssd1306_show_utf8_str(88, 0, "15");        // 屏幕显示 15
+            break;
+        case 4:
+            axk_ch224_set_vout(AXK_CH224_VOUT_20V);        // 设置输出 20V
+            axk_ssd1306_show_utf8_str(88, 0, "20");        // 屏幕显示 20
+            break;
+    }
        
-        float current = INA226_GetCurrent(&my_power_monitor);
-         int32_t current_mA = (int32_t)round(current * 1000.0f);  // 1000.0f避免浮点隐式转换
-         snprintf(buffer, sizeof(buffer), "%4ld", (long)current_mA);
-        axk_ssd1306_show_utf8_str(72, 2, buffer);
+    // 读取并显示电流
+    float current = INA226_GetCurrent(&my_power_monitor);
+    int32_t current_mA = (int32_t)round(current * 1000.0f);  // 乘以 900 转换为毫安
+    snprintf(buffer, sizeof(buffer), "%4ld", (long)current_mA);
+    axk_ssd1306_show_utf8_str(72, 2, buffer);
 
-        float power = INA226_GetPower(&my_power_monitor);
-        int32_t current_w = (int32_t)round(power * 1000.0f);  // 1000.0f避免浮点隐式转换
-        snprintf(buffer, sizeof(buffer), "%4ld", (long)current_w);
-        axk_ssd1306_show_utf8_str(72, 4, buffer);
+    // 读取并显示功率
+    float power = INA226_GetPower(&my_power_monitor);
+    int32_t current_w = (int32_t)round(power * 1000.0f);     // 转换为毫瓦
+    snprintf(buffer, sizeof(buffer), "%4ld", (long)current_w);
+    axk_ssd1306_show_utf8_str(72, 4, buffer);
 
-         osDelay(50);
-
-  }
+    // 延时 50 毫秒
+    osDelay(50);
+ }
 
   /* USER CODE END StartDefaultTask */
+}
+
+/* USER CODE BEGIN Header_StartKeyTask */
+/**
+* @brief Function implementing the KeyTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartKeyTask */
+void StartKeyTask(void *argument)
+{
+  /* USER CODE BEGIN StartKeyTask */
+  /* Infinite loop */
+  for(;;)
+  {
+
+    KEY_NUM();  
+    osDelay(10);
+  }
+  /* USER CODE END StartKeyTask */
 }
 
 /* Private application code --------------------------------------------------*/
