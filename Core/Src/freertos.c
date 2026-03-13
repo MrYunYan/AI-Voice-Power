@@ -29,6 +29,7 @@
 #include "emMCP.h"
 #include "uartPort.h"
 #include "axk_ch224.h"
+#include "PWR_Ctl.h" 
 #include "Key.h"
 #include "ina226.h"
 #include <stdint.h>
@@ -305,6 +306,17 @@ __HAL_DMA_DISABLE_IT(huart2.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（H
 
 
 emMCP_Init(&emMCP_dev);
+
+  relay.name = "灯";//工具名称，保持唯一性
+  relay.description = "用来控制灯的开关";//工具的功能描述
+  relay.inputSchema.properties[0].name = "enable";//属性指令，AI 通过这个指令发送命令
+  relay.inputSchema.properties[0].description = "控制灯,打开:true,关闭为:false,查询为null";  //指令描述，AI 通过这个描述理解指令
+  relay.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_BOOLEAN;//指令类型，AI 通过这个类型发送相对应的数据
+  relay.setRequestHandler = emMCP_SetRelayHandler;//设置控制回调
+  relay.checkRequestHandler = emMCP_GetRelayHandler;//设置查询回调
+  emMCP_AddToolToToolList(&relay);   // 添加工具到工具列表
+  emMCP_RegistrationTools(); // 注册工具到小安AI
+
   for(;;)
   {
   emMCP_TickHandle(100);
