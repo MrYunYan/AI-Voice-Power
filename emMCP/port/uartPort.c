@@ -21,7 +21,7 @@
  *
  * @param data
  * @param len
- * @return int
+ * @return intuartPortSendData
  */
 int uartPortSendData(char *data, int len)
 {
@@ -31,7 +31,9 @@ int uartPortSendData(char *data, int len)
         return -1;
     }
 
-   return HAL_UART_Transmit(&huart1, (uint8_t *)data, len, 100); // 回发送状态
+   //return HAL_UART_Transmit(&huart1, (uint8_t *)data, len, 100); // 回发送状态
+   //九
+   return HAL_UART_Transmit(&huart2, (uint8_t *)data, len, 100); // 回发送状态
 }
 /**
  * @brief 串口接收函数接口,把这个函数在串口接收中断或接收循环中调用

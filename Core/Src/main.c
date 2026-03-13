@@ -59,22 +59,7 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-// 串口接收缓冲区
-uint8_t rx_data[256] = {0};
 
-// 不定长数据接收完成回调函数
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
-{
-    if (huart->Instance == USART1)
-    {
-        // 使用DMA将接收到的数据发送回去
-        HAL_UART_Transmit_DMA(&huart1, rx_data, Size);
-        // 重新启动接收，使用Ex函数，接收不定长数据
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_data, sizeof(rx_data));
-        // 关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
-        __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
-    }
-}
 
 /* USER CODE END 0 */
 
@@ -109,11 +94,9 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_SPI1_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
-// 使用Ex函数，接收不定长数据
-HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_data, sizeof(rx_data));
-// 关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
-__HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+
   /* USER CODE END 2 */
 
   /* Init scheduler */

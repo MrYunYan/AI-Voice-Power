@@ -20,12 +20,12 @@
 #define BSP_I2C_PORT GPIOB
 
 
-#define GPIO_SDA GPIO_PIN_7
-#define GPIO_SCL GPIO_PIN_6
+// #define GPIO_SDA GPIO_PIN_7
+// #define GPIO_SCL GPIO_PIN_6
 
 //九
-// #define GPIO_SDA GPIO_PIN_6
-// #define GPIO_SCL GPIO_PIN_7
+#define GPIO_SDA GPIO_PIN_6
+#define GPIO_SCL GPIO_PIN_7
 
 
 #define BSP_I2C_WRITE 0x00

@@ -19,7 +19,6 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "FreeRTOS.h"
-#include "cmsis_os2.h"
 #include "task.h"
 #include "main.h"
 #include "cmsis_os.h"
@@ -28,12 +27,14 @@
 /* USER CODE BEGIN Includes */
 #include "axk_ssd1306.h"
 #include "emMCP.h"
+#include "uartPort.h"
 #include "axk_ch224.h"
 #include "Key.h"
 #include "ina226.h"
 #include <stdint.h>
 #include <sys/_types.h>
 #include <math.h>
+#include "usart.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -49,6 +50,8 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 
+// 不定长数据接收完成回调函数
+
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -59,14 +62,14 @@
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for KeyTask */
 osThreadId_t KeyTaskHandle;
 const osThreadAttr_t KeyTask_attributes = {
   .name = "KeyTask",
-  .stack_size = 128 * 4,
+  .stack_size = 256 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for BtnQueue */
@@ -77,7 +80,10 @@ const osMessageQueueAttr_t BtnQueue_attributes = {
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-
+#define UART_RXBUFF_MAX 256
+//static emMCP_t emMCP;
+static uint8_t rxBuffer[UART_RXBUFF_MAX] = {0};
+static emMCP_t emMCP_dev;
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -144,6 +150,12 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
 
+
+
+HAL_UART_Transmit(&huart1, (const uint8_t *)"Hello, UART1!", 13, HAL_MAX_DELAY);  
+
+ osDelay(100); // 确保第二条DMA消息发送完成
+
   axk_ssd1306_init();
   axk_ssd1306_set_color_turn(0);
   axk_ssd1306_set_display_turn(0);
@@ -162,8 +174,8 @@ axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
   }else {
    axk_ssd1306_show_utf8_str(24, 2, "CH224 ERROE");
      axk_ssd1306_show_utf8_str(24, 6, "I2C Cfg & HW");
-  while (1) {//死循环停在这里
-  }
+  // while (1) {//死循环停在这里
+  // }
   }
 
 
@@ -209,8 +221,8 @@ char buffer[10];
     if (status == osOK) {
         switch (key_num) {
             case 1:
-                KEY_Output(2); // 设置输出反转
-                KEY_state();   // 读取输出引脚状态并显示
+               // KEY_Output(2); // 设置输出反转
+              //  KEY_state();   // 读取输出引脚状态并显示
                 break;
             case 2:
                 key_V++;       // 电压档位加 1
@@ -256,7 +268,7 @@ char buffer[10];
        
     // 读取并显示电流
     float current = INA226_GetCurrent(&my_power_monitor);
-    int32_t current_mA = (int32_t)round(current * 1000.0f);  // 乘以 900 转换为毫安
+    int32_t current_mA = (int32_t)round(current * 1000.0f);  // 乘以 1000 转换为毫安
     snprintf(buffer, sizeof(buffer), "%4ld", (long)current_mA);
     axk_ssd1306_show_utf8_str(72, 2, buffer);
 
@@ -284,17 +296,45 @@ void StartKeyTask(void *argument)
 {
   /* USER CODE BEGIN StartKeyTask */
   /* Infinite loop */
+  // HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rxBuffer, UART_RXBUFF_MAX);
+// __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
+
+//九
+HAL_UARTEx_ReceiveToIdle_DMA(&huart2, (uint8_t *)rxBuffer, sizeof(rxBuffer));
+__HAL_DMA_DISABLE_IT(huart2.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
+
+
+emMCP_Init(&emMCP_dev);
   for(;;)
   {
-
+  emMCP_TickHandle(100);
     KEY_NUM();  
-    osDelay(10);
+   // osDelay(10);
   }
   /* USER CODE END StartKeyTask */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 
+  //   if (huart->Instance == USART1)
+  //   {
+  // //调用emMCP接收函数
+  //   uartPortRecvData((char *)rxBuffer, Size);
+  //   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rxBuffer, UART_RXBUFF_MAX);
+  //       // 关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
+  //       __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+  //   }
+
+
+//九
+      if (huart->Instance == USART2){     
+  //调用emMCP接收函数
+  uartPortRecvData((char *)rxBuffer, Size);
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rxBuffer, sizeof(rxBuffer));
+    __HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
+    }
+}
 /* USER CODE END Application */
 
