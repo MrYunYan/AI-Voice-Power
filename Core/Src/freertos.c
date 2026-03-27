@@ -195,13 +195,13 @@ INA226_Device_t my_power_monitor;
 
 osDelay(2000);
 axk_ssd1306_clear_screen();//初始化完成清屏
-
+   
 
   axk_ssd1306_show_utf8_str(0, 0,"电压(V):");
-  axk_ssd1306_show_utf8_str(0, 2, "电流(mA):");
+  axk_ssd1306_show_utf8_str(0, 2, "电流(A):");
 
 
-  axk_ssd1306_show_utf8_str(0, 4, "功率(mW):");
+  axk_ssd1306_show_utf8_str(0, 4, "功率(W):");
  
   axk_ssd1306_show_utf8_str(0, 6, "当前状态:");
   axk_ssd1306_show_utf8_str(92, 6, "关");
@@ -263,18 +263,22 @@ char buffer[10];
             axk_ssd1306_show_utf8_str(88, 0, "20");        // 屏幕显示 20
             break;
     }
-       
+
+     
     // 读取并显示电流
     float current = INA226_GetCurrent(&my_power_monitor);
-    int32_t current_mA = (int32_t)round(current * 1000.0f);  // 乘以 1000 转换为毫安
-    snprintf(buffer, sizeof(buffer), "%4ld", (long)current_mA);
-    axk_ssd1306_show_utf8_str(72, 2, buffer);
+   axk_ssd1306_show_float(72, 2, FONT_SIEZE_16, 0, current, 3); // 显示电流，保留3位小数
+
+    // int32_t current_mA = (int32_t)round(current * 1000.0f);  // 乘以 1000 转换为毫安
+    // snprintf(buffer, sizeof(buffer), "%4ld", (long)current_mA);
+    // axk_ssd1306_show_utf8_str(72, 2, buffer);
 
     // 读取并显示功率
     float power = INA226_GetPower(&my_power_monitor);
-    int32_t current_w = (int32_t)round(power * 1000.0f);     // 转换为毫瓦
-    snprintf(buffer, sizeof(buffer), "%4ld", (long)current_w);
-    axk_ssd1306_show_utf8_str(72, 4, buffer);
+   axk_ssd1306_show_float(72, 4, FONT_SIEZE_16, 0, power, 3); // 显示功率，保留3位小数
+    // int32_t current_w = (int32_t)round(power * 1000.0f);     // 转换为毫瓦
+    // snprintf(buffer, sizeof(buffer), "%4ld", (long)current_w);
+    // axk_ssd1306_show_utf8_str(72, 4, buffer);
 
     // 延时 50 毫秒
     osDelay(50);

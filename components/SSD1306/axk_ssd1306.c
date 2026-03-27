@@ -607,4 +607,104 @@ void axk_ssd1306_show_utf8_str(unsigned char x, unsigned char y,
     }
   }
 }
+
+unsigned char axk_ssd1306_show_float(unsigned char x, unsigned char y,
+                                           font_size_t font_size,
+                                           unsigned char show_mode,
+                                           float num, unsigned char max_precision) {
+    if (x >= 128 || y >= 8 || max_precision > 6) return 0;
+    
+    unsigned char char_width = (font_size == FONT_SIEZE_8) ? 6 : (font_size / 2);
+    char buf[16] = {0};
+    unsigned char pos = 0;
+    
+    // 1. 处理负数
+    if (num < 0) {
+        buf[pos++] = '-';
+        num = -num;
+    }
+    
+    // 2. 纯整数运算：将浮点数放大为整数处理，避免累积误差
+    unsigned long multiplier = 1;
+    for (unsigned char i = 0; i < max_precision; i++) multiplier *= 10;
+    
+    // 四舍五入：加上 0.5 个最小单位
+    unsigned long scaled = (unsigned long)(num * multiplier * 10 + 5) / 10;
+    
+    // 检查进位（如 15.999 → 16000）
+    if (scaled >= multiplier * 1000 / 10) {  // 简化检查
+        // 重新计算，确保正确进位
+        unsigned long int_part = (unsigned long)num;
+        float frac = num - int_part;
+        unsigned long frac_scaled = (unsigned long)(frac * multiplier + 0.5);
+        if (frac_scaled >= multiplier) {
+            int_part++;
+            frac_scaled = 0;
+        }
+        scaled = int_part * multiplier + frac_scaled;
+    }
+    
+    // 3. 分离整数和小数部分
+    unsigned long int_val = scaled / multiplier;
+    unsigned long frac_val = scaled % multiplier;
+    
+    // 4. 计算实际精度（去除末尾零）
+    unsigned char actual_prec = max_precision;
+    while (actual_prec > 0 && (frac_val % 10) == 0) {
+        frac_val /= 10;
+        actual_prec--;
+    }
+    
+    // 5. 格式化整数部分
+    char int_buf[10];
+    unsigned char int_len = 0;
+    if (int_val == 0) {
+        int_buf[int_len++] = '0';
+    } else {
+        while (int_val > 0) {
+            int_buf[int_len++] = (int_val % 10) + '0';
+            int_val /= 10;
+        }
+    }
+    // 反转到输出
+    for (signed char i = int_len - 1; i >= 0; i--) {
+        buf[pos++] = int_buf[i];
+    }
+    
+    // 6. 格式化小数部分（如果有）
+    if (actual_prec > 0) {
+        buf[pos++] = '.';
+        
+        // 需要补前导零吗？例如 0.001，实际存储为 1，但要显示 001
+        char frac_buf[6];
+        unsigned char frac_len = 0;
+        
+        // 临时变量用于提取数字
+        unsigned long temp = frac_val;
+        while (temp > 0) {
+            frac_buf[frac_len++] = (temp % 10) + '0';
+            temp /= 10;
+        }
+        
+        // 补前导零（如果有）
+        for (unsigned char i = frac_len; i < actual_prec; i++) {
+            buf[pos++] = '0';
+        }
+        
+        // 反转输出小数
+        for (signed char i = frac_len - 1; i >= 0; i--) {
+            buf[pos++] = frac_buf[i];
+        }
+    }
+    
+    buf[pos] = '\0';
+    
+    // 7. 显示
+    unsigned char width = pos * char_width;
+    if (x + width > 128) return 0;
+    
+    axk_ssd1306_show_utf8_str(x, y, buf);
+    return width;
+}
+
 #endif
