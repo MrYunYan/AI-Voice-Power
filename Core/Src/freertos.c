@@ -152,9 +152,6 @@ void StartDefaultTask(void *argument)
   /* Infinite loop */
 
 
-
-HAL_UART_Transmit(&huart1, (const uint8_t *)"Hello, UART1!", 13, HAL_MAX_DELAY);  
-
  osDelay(100); // 确保第二条DMA消息发送完成
 
   axk_ssd1306_init();
@@ -305,16 +302,16 @@ HAL_UARTEx_ReceiveToIdle_DMA(&huart2, (uint8_t *)rxBuffer, sizeof(rxBuffer));
 __HAL_DMA_DISABLE_IT(huart2.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
 
 
-emMCP_Init(&emMCP_dev);
-
-  relay.name = "灯";//工具名称，保持唯一性
-  relay.description = "用来控制灯的开关";//工具的功能描述
-  relay.inputSchema.properties[0].name = "enable";//属性指令，AI 通过这个指令发送命令
-  relay.inputSchema.properties[0].description = "控制灯,打开:true,关闭为:false,查询为null";  //指令描述，AI 通过这个描述理解指令
-  relay.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_BOOLEAN;//指令类型，AI 通过这个类型发送相对应的数据
-  relay.setRequestHandler = emMCP_SetRelayHandler;//设置控制回调
-  relay.checkRequestHandler = emMCP_GetRelayHandler;//设置查询回调
-  emMCP_AddToolToToolList(&relay);   // 添加工具到工具列表
+ emMCP_Init(&emMCP_dev);
+  static emMCP_tool_t led;//创建工具
+  led.name = "LED灯";//工具名称，保持唯一性
+  led.description = "用来查询与控制LED灯的开关";//工具的功能描述
+  led.inputSchema.properties[0].name = "led_state";//属性指令，AI 通过这个指令发送命令
+  led.inputSchema.properties[0].description = "控制LED灯,打开:true,关闭为:false,查询为null";  //指令描述，AI 通过这个描述理解指令
+  led.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_BOOLEAN;//指令类型，AI 通过这个类型发送相对应的数据
+  led.setRequestHandler = emMCP_SetRelayHandler;//设置控制回调
+  led.checkRequestHandler = emMCP_GetRelayHandler;//设置查询回调
+  emMCP_AddToolToToolList(&led);   // 添加工具到工具列表
   emMCP_RegistrationTools(); // 注册工具到小安AI
 
   for(;;)
