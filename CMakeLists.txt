@@ -43,7 +43,9 @@ target_link_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined library search paths
 )
 
-file(GLOB EMMCP_SRC_FILES  "emMCP/port/*.c" "emMCP/uart-mcp/*.c" "emMCP/uart-mcp/cJSON/*.c")
+set(EMCP_USER_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/components/emMCP_config.h)
+add_subdirectory(./emMCP emMCP)
+# file(GLOB EMMCP_SRC_FILES  "emMCP/port/*.c" "emMCP/uart-mcp/*.c" "emMCP/uart-mcp/cJSON/*.c")
 # Add sources to executable
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
@@ -74,4 +76,5 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
     # Add user defined libraries
     components
     bsp
+    emMCP
 )

@@ -608,103 +608,107 @@ void axk_ssd1306_show_utf8_str(unsigned char x, unsigned char y,
   }
 }
 
-unsigned char axk_ssd1306_show_float(unsigned char x, unsigned char y,
-                                           font_size_t font_size,
-                                           unsigned char show_mode,
-                                           float num, unsigned char max_precision) {
-    if (x >= 128 || y >= 8 || max_precision > 6) return 0;
-    
-    unsigned char char_width = (font_size == FONT_SIEZE_8) ? 6 : (font_size / 2);
-    char buf[16] = {0};
-    unsigned char pos = 0;
-    
-    // 1. 处理负数
-    if (num < 0) {
-        buf[pos++] = '-';
-        num = -num;
+/**
+ * @brief 在字符串末尾补齐空格，用于清除显示残留(局部擦除)
+ * * @param str 原始字符串数组
+ * @param max_len 该数据在屏幕上占据的最大字符长度
+ */
+static void axk_ssd1306_clear_area(char *str, int max_len) {
+    int len = 0;
+    // 找到当前字符串的结尾
+    while (str[len] != '\0') {
+        len++;
     }
-    
-    // 2. 纯整数运算：将浮点数放大为整数处理，避免累积误差
-    unsigned long multiplier = 1;
-    for (unsigned char i = 0; i < max_precision; i++) multiplier *= 10;
-    
-    // 四舍五入：加上 0.5 个最小单位
-    unsigned long scaled = (unsigned long)(num * multiplier * 10 + 5) / 10;
-    
-    // 检查进位（如 15.999 → 16000）
-    if (scaled >= multiplier * 1000 / 10) {  // 简化检查
-        // 重新计算，确保正确进位
-        unsigned long int_part = (unsigned long)num;
-        float frac = num - int_part;
-        unsigned long frac_scaled = (unsigned long)(frac * multiplier + 0.5);
-        if (frac_scaled >= multiplier) {
-            int_part++;
-            frac_scaled = 0;
-        }
-        scaled = int_part * multiplier + frac_scaled;
+    // 如果当前长度小于最大长度，用空格补齐
+    while (len < max_len) {
+        str[len] = ' '; // 填入空格
+        len++;
     }
-    
-    // 3. 分离整数和小数部分
-    unsigned long int_val = scaled / multiplier;
-    unsigned long frac_val = scaled % multiplier;
-    
-    // 4. 计算实际精度（去除末尾零）
-    unsigned char actual_prec = max_precision;
-    while (actual_prec > 0 && (frac_val % 10) == 0) {
-        frac_val /= 10;
-        actual_prec--;
-    }
-    
-    // 5. 格式化整数部分
-    char int_buf[10];
-    unsigned char int_len = 0;
-    if (int_val == 0) {
-        int_buf[int_len++] = '0';
-    } else {
-        while (int_val > 0) {
-            int_buf[int_len++] = (int_val % 10) + '0';
-            int_val /= 10;
-        }
-    }
-    // 反转到输出
-    for (signed char i = int_len - 1; i >= 0; i--) {
-        buf[pos++] = int_buf[i];
-    }
-    
-    // 6. 格式化小数部分（如果有）
-    if (actual_prec > 0) {
-        buf[pos++] = '.';
-        
-        // 需要补前导零吗？例如 0.001，实际存储为 1，但要显示 001
-        char frac_buf[6];
-        unsigned char frac_len = 0;
-        
-        // 临时变量用于提取数字
-        unsigned long temp = frac_val;
-        while (temp > 0) {
-            frac_buf[frac_len++] = (temp % 10) + '0';
-            temp /= 10;
-        }
-        
-        // 补前导零（如果有）
-        for (unsigned char i = frac_len; i < actual_prec; i++) {
-            buf[pos++] = '0';
-        }
-        
-        // 反转输出小数
-        for (signed char i = frac_len - 1; i >= 0; i--) {
-            buf[pos++] = frac_buf[i];
-        }
-    }
-    
-    buf[pos] = '\0';
-    
-    // 7. 显示
-    unsigned char width = pos * char_width;
-    if (x + width > 128) return 0;
-    
-    axk_ssd1306_show_utf8_str(x, y, buf);
-    return width;
+    // 重新加上字符串结束符
+    str[len] = '\0';
 }
 
+
+/**
+ * @brief 使用“放大整除法”显示浮点数，并自动去除尾部多余的 0
+ * * @param x 起始列坐标 (0-127)
+ * @param y 起始页坐标 (0-7)
+ * @param font_size 字体大小 
+ * @param show_mode 显示模式 (0: 正常, 1: 反色)
+ * @param num 要显示的浮点数 (例如: 15.4)
+ * @param precision 最大保留的小数位数 (例如: 3)
+ */
+void axk_ssd1306_show_float(unsigned char x, unsigned char y,
+                            font_size_t font_size, unsigned char show_mode,
+                            float num, unsigned char precision) {
+    char buf[20];          // 临时存放提取出来的数字字符
+    char final_str[24];    // 存放最终生成的字符串
+    long long scaled_val;  // 放大后的整数值
+    int i, len = 0, p = 0;
+    int is_negative = 0;
+
+    // 1. 处理负数情况
+    if (num < 0) {
+        is_negative = 1;
+        num = -num;
+    }
+
+    // 2. 放大数值并进行四舍五入补偿
+    // 例如：num=15.4123, precision=3，放大 1000 倍变成 15412.3，加上 0.5 后转为整数 15412
+    double multiplier = 1.0;
+    for (i = 0; i < precision; i++) {
+        multiplier *= 10.0;
+    }
+    scaled_val = (long long)(num * multiplier + 0.5);
+
+    // 3. 提取每一位数字（从低位到高位存入 buf）
+    if (scaled_val == 0) {
+        buf[len++] = '0';
+    } else {
+        while (scaled_val > 0) {
+            buf[len++] = (scaled_val % 10) + '0';
+            scaled_val /= 10;
+        }
+    }
+
+    // 4. 处理前导零
+    // 如果数值很小（比如 0.4 放大后是 4），需要补齐前面的 0，确保能正确插入小数点
+    while (len <= precision) {
+        buf[len++] = '0';
+    }
+
+    // 5. 组装最终字符串（从高位到低位倒序装入）
+    if (is_negative) {
+        final_str[p++] = '-';
+    }
+
+    for (i = len - 1; i >= 0; i--) {
+        // 当剩下的字符数量恰好等于精度时，说明接下来的数字是小数部分了，先插入小数点
+        if (i == precision - 1 && precision > 0) {
+            final_str[p++] = '.';
+        }
+        final_str[p++] = buf[i];
+    }
+    final_str[p] = '\0'; // 加上字符串结束标志
+
+    // 6. 修剪尾部多余的 0
+    // 如果设定了小数精度，才需要去检查并删除末尾的 0
+    if (precision > 0) {
+        p--; // 让指针退回到字符串的最后一个可视字符
+        
+        // 只要末尾是 '0'，就把结尾标志 '\0' 往前挪，相当于删除了 '0'
+        while (p > 0 && final_str[p] == '0') {
+            final_str[p] = '\0';
+            p--;
+        }
+        
+        // 如果尾部的 '0' 删完后，最后一个字符变成了小数点，也把它删掉（例如 "15." 变成 "15"）
+        if (final_str[p] == '.') {
+            final_str[p] = '\0';
+        }
+    }
+   axk_ssd1306_clear_area(final_str, 6); // 
+    // 7. 调用底层的 UTF-8 显示函数将字符串打印到屏幕上
+    axk_ssd1306_show_utf8_str(x, y, final_str);
+}
 #endif

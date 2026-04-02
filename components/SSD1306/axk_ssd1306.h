@@ -182,9 +182,8 @@ void axk_ssd1306_show_numble(unsigned char x, unsigned char y,
 #ifdef AXK_GT20L16_IS_AVAILABLE
 void axk_ssd1306_show_gb2312_str(unsigned char x, unsigned char y, char *str);
 void axk_ssd1306_show_utf8_str(unsigned char x, unsigned char y, const char *str);
-unsigned char axk_ssd1306_show_float(unsigned char x, unsigned char y,
-                                           font_size_t font_size,
-                                           unsigned char show_mode,
-                                           float num, unsigned char max_precision);
+void axk_ssd1306_show_float(unsigned char x, unsigned char y,
+                            font_size_t font_size, unsigned char show_mode,
+                            float num, unsigned char precision) ;
 #endif
 #endif

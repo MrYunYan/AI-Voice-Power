@@ -63,14 +63,14 @@
 osThreadId_t defaultTaskHandle;
 const osThreadAttr_t defaultTask_attributes = {
   .name = "defaultTask",
-  .stack_size = 256 * 4,
+  .stack_size = 384 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for KeyTask */
 osThreadId_t KeyTaskHandle;
 const osThreadAttr_t KeyTask_attributes = {
   .name = "KeyTask",
-  .stack_size = 256 * 4,
+  .stack_size = 512 * 4,
   .priority = (osPriority_t) osPriorityLow,
 };
 /* Definitions for BtnQueue */
@@ -85,6 +85,8 @@ const osMessageQueueAttr_t BtnQueue_attributes = {
 //static emMCP_t emMCP;
 static uint8_t rxBuffer[UART_RXBUFF_MAX] = {0};
 static emMCP_t emMCP_dev;
+INA226_Device_t my_power_monitor;  // 全局 INA226 设备管理器，供回调函数使用
+
 /* USER CODE END FunctionPrototypes */
 
 void StartDefaultTask(void *argument);
@@ -151,8 +153,9 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
 
+HAL_UART_Transmit(&huart1, "Hello, World!", 13, 100);
+//HAL_UART_Transmit(&huart2, "Hello, World!", 13, 100);
 
- osDelay(100); // 确保第二条DMA消息发送完成
 
   axk_ssd1306_init();
   axk_ssd1306_set_color_turn(0);
@@ -176,9 +179,6 @@ axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
   // }
   }
 
-
-/* 实例化一个 INA226 设备管理器 */
-INA226_Device_t my_power_monitor;
 /* 
 * 初始化 INA226
 * 假设你的硬件电路上使用的是 10 毫欧 (0.01 欧姆) 的采样电阻
@@ -206,10 +206,9 @@ axk_ssd1306_clear_screen();//初始化完成清屏
   axk_ssd1306_show_utf8_str(0, 6, "当前状态:");
   axk_ssd1306_show_utf8_str(92, 6, "关");
 
-char buffer[10];
+//char buffer[10];
  uint8_t key_num=0;
- int8_t key_V=1;
- 
+ int8_t key_V=0;
  for(;;){
     // 尝试从队列中获取按键消息，并把结果保存在 status 变量里
     // 这里的 0 表示如果没有消息就立刻继续往下走，不卡在这里死等
@@ -219,8 +218,8 @@ char buffer[10];
     if (status == osOK) {
         switch (key_num) {
             case 1:
-               // KEY_Output(2); // 设置输出反转
-              //  KEY_state();   // 读取输出引脚状态并显示
+               KEY_Output(2); // 设置输出反转
+               sys_ctrl.is_output_on = !sys_ctrl.is_output_on; // 更新状态
                 break;
             case 2:
                 key_V++;       // 电压档位加 1
@@ -238,48 +237,59 @@ char buffer[10];
         
         // 处理完一次按键后，立刻把按键值清零，防止下一圈循环重复触发
         key_num = 0; 
+       
     }
 
+    KEY_state();   // 读取输出引脚状态并显示
     // 下面的代码不受按键影响，每次循环都会正常刷新屏幕和电压
-    switch (key_V) {
-        case 0:
-            axk_ch224_set_vout(AXK_CH224_VOUT_5V);         // 设置输出 5V
-            axk_ssd1306_show_utf8_str(88, 0, " 5");        // 屏幕显示 5
-            break;
-        case 1:
-            axk_ch224_set_vout(AXK_CH224_VOUT_9V);         // 设置输出 9V
-            axk_ssd1306_show_utf8_str(88, 0, " 9");        // 屏幕显示 9
-            break;
-        case 2:
-            axk_ch224_set_vout(AXK_CH224_VOUT_12V);        // 设置输出 12V
-            axk_ssd1306_show_utf8_str(88, 0, "12");        // 屏幕显示 12
-            break;
-        case 3:
-            axk_ch224_set_vout(AXK_CH224_VOUT_15V);        // 设置输出 15V
-            axk_ssd1306_show_utf8_str(88, 0, "15");        // 屏幕显示 15
-            break;
-        case 4:
-            axk_ch224_set_vout(AXK_CH224_VOUT_20V);        // 设置输出 20V
-            axk_ssd1306_show_utf8_str(88, 0, "20");        // 屏幕显示 20
-            break;
-    }
+    handle_key_voltage_change(key_V); // 根据当前按键档位设置电压输出
+     // 读取并显示电压
+    // switch (key_V) {
+    //     case 0:
+    //         axk_ch224_set_vout(AXK_CH224_VOUT_5V);         // 设置输出 5V
+    //         axk_ssd1306_show_utf8_str(72, 0, " 5");   // 屏幕显示 5
+    //         break;
+    //     case 1:
+    //         axk_ch224_set_vout(AXK_CH224_VOUT_9V);         // 设置输出 9V
+    //         axk_ssd1306_show_utf8_str(72, 0, " 9");        // 屏幕显示 9
+    //         break;
+    //     case 2:
+    //         axk_ch224_set_vout(AXK_CH224_VOUT_12V);        // 设置输出 12V
+    //         axk_ssd1306_show_utf8_str(72, 0, "12");        // 屏幕显示 12
+    //         break;
+    //     case 3:
+    //         axk_ch224_set_vout(AXK_CH224_VOUT_15V);        // 设置输出 15V
+    //         axk_ssd1306_show_utf8_str(72, 0, "15");        // 屏幕显示 15
+    //         break;
+    //     case 4:
+    //         axk_ch224_set_vout(AXK_CH224_VOUT_20V);        // 设置输出 20V
+    //         axk_ssd1306_show_utf8_str(72, 0, "20");        // 屏幕显示 20
+    //         break;
+    // }
 
-     
+     //
+      // 读取并显示电压
+   sys_ctrl.real_v = INA226_GetBusVoltage();
+    // 2. 根据开关状态决定显示逻辑
+        if (sys_ctrl.is_output_on == 0) {
+            // 【输出关闭状态】：显示我们设定的目标电压
+            // 使用 sprintf 将浮点数格式化为字符串，保留1位或2位小数
+          
+             axk_ssd1306_show_float(72, 0, FONT_SIEZE_16, 0, sys_ctrl.target_v, 1); //显示电压
+            // 可选体验优化：关闭状态下，可以加上闪烁或者反色效果，提醒用户当前没有电输出
+            
+        } else {
+            // 【输出开启状态】：显示 INA226 测量到的真实电压
+        
+             axk_ssd1306_show_float(72, 0, FONT_SIEZE_16, 0, sys_ctrl.real_v, 1); // 显示电压
+      
+        }
     // 读取并显示电流
     float current = INA226_GetCurrent(&my_power_monitor);
    axk_ssd1306_show_float(72, 2, FONT_SIEZE_16, 0, current, 3); // 显示电流，保留3位小数
-
-    // int32_t current_mA = (int32_t)round(current * 1000.0f);  // 乘以 1000 转换为毫安
-    // snprintf(buffer, sizeof(buffer), "%4ld", (long)current_mA);
-    // axk_ssd1306_show_utf8_str(72, 2, buffer);
-
     // 读取并显示功率
     float power = INA226_GetPower(&my_power_monitor);
    axk_ssd1306_show_float(72, 4, FONT_SIEZE_16, 0, power, 3); // 显示功率，保留3位小数
-    // int32_t current_w = (int32_t)round(power * 1000.0f);     // 转换为毫瓦
-    // snprintf(buffer, sizeof(buffer), "%4ld", (long)current_w);
-    // axk_ssd1306_show_utf8_str(72, 4, buffer);
-
     // 延时 50 毫秒
     osDelay(50);
  }
@@ -298,29 +308,65 @@ void StartKeyTask(void *argument)
 {
   /* USER CODE BEGIN StartKeyTask */
   /* Infinite loop */
-  // HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rxBuffer, UART_RXBUFF_MAX);
-// __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, (uint8_t *)rxBuffer, sizeof(rxBuffer));
+__HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
 
 //九
-HAL_UARTEx_ReceiveToIdle_DMA(&huart2, (uint8_t *)rxBuffer, sizeof(rxBuffer));
-__HAL_DMA_DISABLE_IT(huart2.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
+//HAL_UARTEx_ReceiveToIdle_DMA(&huart2, (uint8_t *)rxBuffer, sizeof(rxBuffer));
+//__HAL_DMA_DISABLE_IT(huart2.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
+
+  
+ 
+
+  emMCP_Init(&emMCP_dev);
+ static emMCP_tool_t Output;//创建工具
+  Output.name = "设备输出开关";//工具名称，保持唯一性
+  Output.description = "用于设置与查询设备输出状态";//工具的功能描述
+  Output.inputSchema.properties[0].name = "power_state";//属性指令，AI 通过这个指令发送命令
+  Output.inputSchema.properties[0].description = "控制设备输出开关,打开:true,关闭为:false,查询为null";  //指令描述，AI 通过这个描述理解指令
+  Output.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_BOOLEAN;//指令类型，AI 通过这个类型发送相对应的数据
+  Output.setRequestHandler = emMCP_SetRelayHandler;//设置控制回调
+  Output.checkRequestHandler = emMCP_GetRelayHandler;//设置查询回调
+  emMCP_AddToolToToolList(&Output);   // 添加工具到工具列表
 
 
- emMCP_Init(&emMCP_dev);
-  static emMCP_tool_t led;//创建工具
-  led.name = "LED灯";//工具名称，保持唯一性
-  led.description = "用来查询与控制LED灯的开关";//工具的功能描述
-  led.inputSchema.properties[0].name = "led_state";//属性指令，AI 通过这个指令发送命令
-  led.inputSchema.properties[0].description = "控制LED灯,打开:true,关闭为:false,查询为null";  //指令描述，AI 通过这个描述理解指令
-  led.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_BOOLEAN;//指令类型，AI 通过这个类型发送相对应的数据
-  led.setRequestHandler = emMCP_SetRelayHandler;//设置控制回调
-  led.checkRequestHandler = emMCP_GetRelayHandler;//设置查询回调
-  emMCP_AddToolToToolList(&led);   // 添加工具到工具列表
+  // static emMCP_tool_t voltage;//创建工具
+  // voltage.name = "电压值";//工具名称，保持唯一性
+  // voltage.description = "用来设置与查询电压值";//工具的功能描述
+  // voltage.inputSchema.properties[0].name = "voltage_value";//属性指令，AI 通过这个指令发送命令
+  // voltage.inputSchema.properties[0].description = "设置电压值,设置为具体的电压数值,范围为5.0伏到20.0伏,设置精度为小数点一位,查询电压值发送null";  //指令描述，AI 通过这个描述理解指令
+  // voltage.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+  // voltage.setRequestHandler = emMCP_SetVoltageHandler;//设置控制回调
+  // voltage.checkRequestHandler = emMCP_GetVoltageHandler;//设置查询回调
+  // emMCP_AddToolToToolList(&voltage);   // 添加工具到工具列表
+
+
+  static emMCP_tool_t current;//创建工具
+  current.name = "电流值";//工具名称，保持唯一性
+  current.description = "用来查询电流值";//工具的功能描述
+  current.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
+  current.inputSchema.properties[0].description = "查询电流值发送null";  //指令描述，AI 通过这个描述理解指令
+  current.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+  current.checkRequestHandler = emMCP_GetCurrentHandler;//设置查询回调
+  emMCP_AddToolToToolList(&current);   // 添加工具到工具列表
+
+  // static emMCP_tool_t power;//创建工具
+  // power.name = "功率值";//工具名称，保持唯一性
+  // power.description = "用来查询功率值";//工具的功能描述
+  // power.inputSchema.properties[0].name = "power_value";//属性指令，AI 通过这个指令发送命令
+  // power.inputSchema.properties[0].description = "查询功率值发送null";  //指令描述，AI 通过这个描述理解指令
+  // power.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+  // power.checkRequestHandler = emMCP_GetPowerHandler;//设置查询回调
+  // emMCP_AddToolToToolList(&power);   // 添加工具到工具列表
+
+
   emMCP_RegistrationTools(); // 注册工具到小安AI
+
+
 
   for(;;)
   {
-  emMCP_TickHandle(100);
+  emMCP_TickHandle(10);
     KEY_NUM();  
    // osDelay(10);
   }
@@ -331,23 +377,25 @@ __HAL_DMA_DISABLE_IT(huart2.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（H
 /* USER CODE BEGIN Application */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 
-  //   if (huart->Instance == USART1)
-  //   {
-  // //调用emMCP接收函数
-  //   uartPortRecvData((char *)rxBuffer, Size);
-  //   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rxBuffer, UART_RXBUFF_MAX);
-  //       // 关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
-  //       __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
-  //   }
+    if (huart->Instance == USART1)
+    {
+
+       HAL_UARTEx_ReceiveToIdle_DMA(&huart1,  (uint8_t *)rxBuffer,  sizeof(rxBuffer));
+  //调用emMCP接收函数
+    uartPortRecvData((char *)rxBuffer, Size);
+   
+        // 关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
+        __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+    }
 
 
 //九
-      if (huart->Instance == USART2){     
-  //调用emMCP接收函数
-  uartPortRecvData((char *)rxBuffer, Size);
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rxBuffer, sizeof(rxBuffer));
-    __HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
-    }
+  //     if (huart->Instance == USART2){     
+  // //调用emMCP接收函数
+  // uartPortRecvData((char *)rxBuffer, Size);
+  //   HAL_UARTEx_ReceiveToIdle_DMA(&huart2, rxBuffer, sizeof(rxBuffer));
+  //   __HAL_DMA_DISABLE_IT(huart->hdmarx, DMA_IT_HT);
+  //   }
 }
 /* USER CODE END Application */
 

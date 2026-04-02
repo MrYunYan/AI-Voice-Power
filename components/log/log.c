@@ -27,7 +27,7 @@ void log_printf(const char *format, ...) {
   va_start(args, format);
   int len = vsnprintf(buffer, LOG_BUFFER_SIZE, format, args);
   va_end(args);
-  HAL_UART_Transmit(&huart1, (uint8_t *)buffer, len, 100);
+  HAL_UART_Transmit(&huart2, (uint8_t *)buffer, len, 100);
   //   HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, len);
 }
 
