@@ -92,140 +92,159 @@ void emMCP_SetRelayHandler(void *arg)
  */
 void emMCP_GetRelayHandler(void *arg)
 {
-    // 创建 JSON 对象用于响应
-    cJSON *response = cJSON_CreateObject();
+    char response_str[64];
+    
     // 读取 GPIOB PIN_5 的电平，判断继电器（LED）状态
     if (HAL_GPIO_ReadPin(OutputKey_GPIO_Port, OutputKey_Pin) == GPIO_PIN_SET) {
         // 如果为高电平，表示 LED/继电器为开
-        cJSON_AddBoolToObject(response, "power_state", true);
+        sprintf(response_str, "{\"power_state\":true}");
     } else {
         // 如果为低电平，表示 LED/继电器为关
-        cJSON_AddBoolToObject(response, "power_state", false);
+        sprintf(response_str, "{\"power_state\":false}");
     }
-    // 将 JSON 对象序列化为字符串
-    char *response_str = cJSON_PrintUnformatted(response);
+    
     // 返回 JSON 字符串作为查询结果
     emMCP_ResponseValue(response_str);
 
-   
-    // 释放 JSON 对象占用的内存
-    cJSON_Delete(response);
-     emMCP_free(response_str); // 释放序列化字符串占用的内存
 }
 
 /**
- * @brief  设置电压值的回调函数
- * @param  arg 接收的 JSON 参数对象指针
- * @note   该函数用于设置输出电压值，电压范围 5.0V - 20.0V，精度 0.1V
- *         若接收到 null 值，则查询当前电压（暂不实现查询功能）
+ * @brief 设置电压值的回调函数
+ * @param arg 包含电压参数的 JSON 对象指针
+ * @note  支持设置5.0V到20.0V的电压，精度为0.1V
+ *        函数会将设备设置为PPS模式并更新目标电压
+ *        使用手动整数+小数分离方式避免sprintf %f不支持的问题
  */
 void emMCP_SetVoltageHandler(void *arg)
 {
+    // 接收到的数据
     cJSON *param = (cJSON *)arg;
+    
+    // 获取电压参数
     cJSON *voltage_value = cJSON_GetObjectItem(param, "voltage_value");
     
-    if (voltage_value != NULL) {
-        if (voltage_value->type == cJSON_NULL) {
-            // 查询当前电压 - 暂不实现
-            emMCP_ResponseValue("{\"voltage_value\":\"query pending\"}");
-        } else {
-            // 设置电压值
-            float voltage = (float)voltage_value->valuedouble;
-            
-            // 验证电压范围
-            if (voltage >= 5.0f && voltage <= 20.0f) {
-                if (axk_ch224_set_pps_vout(voltage) == 0) {
-                    // 设置成功
-                    char response[64];
-                    snprintf(response, sizeof(response), "{\"voltage_value\":%.1f}", voltage);
-                    emMCP_ResponseValue(response);
-                } else {
-                    emMCP_ResponseValue("{\"error\":\"voltage set failed\"}");
+    if (voltage_value != NULL && voltage_value->valuedouble != 0) {
+        float target_voltage = (float)voltage_value->valuedouble;
+        
+        // 检查电压值是否在有效范围内 (5.0V - 20.0V)
+        if (target_voltage >= 5.0f && target_voltage <= 20.0f) {
+            // 调用PPS设置函数
+            if (axk_ch224_set_pps_vout(target_voltage) == 0) {
+                // 设置成功，更新系统状态
+                sys_ctrl.is_pps = 1;           // 进入PPS模式
+                sys_ctrl.target_v = target_voltage; // 更新目标电压
+                
+                // 手动拆分：整数部分和小数部分（1位小数）
+                int voltage_int = (int)target_voltage;
+                int voltage_frac = (int)((target_voltage - voltage_int) * 10);
+                if (voltage_frac < 0) {
+                    voltage_frac = -voltage_frac;
                 }
+                
+                // 返回成功响应
+                char response_str[64];
+                sprintf(response_str, "{\"voltage_value\":%d.%01d}", voltage_int, voltage_frac);
+                emMCP_ResponseValue(response_str);
             } else {
-                emMCP_ResponseValue("{\"error\":\"voltage out of range, 5.0-20.0V\"}");
+                // 设置失败
+                emMCP_ResponseValue("{\"error\":\"Failed to set voltage\"}");
             }
+        } else {
+            // 电压值超出范围
+            emMCP_ResponseValue("{\"error\":\"Voltage out of range (5.0V - 20.0V)\"}");
         }
+    } else {
+        // 参数无效
+        emMCP_ResponseValue("{\"error\":\"Invalid voltage parameter\"}");
     }
 }
 
 /**
- * @brief  查询电压值的回调函数
- * @param  arg 未使用参数
- * @note   该函数用于查询当前输出电压值
+ * @brief 查询电压值的回调函数
+ * @param arg 未使用参数（保留接口一致性）
+ * @note  根据输出开关状态返回不同的电压值：
+ *        - 输出关闭时：返回设定的目标电压
+ *        - 输出开启时：返回INA226测量的实际电压
+ *        使用手动整数+小数分离方式避免sprintf %f不支持的问题
  */
 void emMCP_GetVoltageHandler(void *arg)
 {
-    // 创建 JSON 对象用于响应
-    cJSON *response = cJSON_CreateObject();
+    char response_str[64];
+    float voltage_to_report;
     
-    // 获取总线电压
-    float voltage = INA226_GetBusVoltage();
-
-
-    // 添加电压值到响应
-    cJSON_AddNumberToObject(response, "voltage_value", voltage);
+    // 根据输出开关状态决定返回哪个电压值
+    if (sys_ctrl.is_output_on == 0) {
+        // 输出关闭时，返回目标电压
+        voltage_to_report = sys_ctrl.target_v;
+    } else {
+        // 输出开启时，返回实际电压
+        voltage_to_report = sys_ctrl.real_v;
+    }
     
-    // 将 JSON 对象序列化为字符串
-    char *response_str = cJSON_PrintUnformatted(response);
+    // 手动拆分：整数部分和小数部分（1位小数）
+    int voltage_int = (int)voltage_to_report;
+    int voltage_frac = (int)((voltage_to_report - voltage_int) * 10);
+    if (voltage_frac < 0) {
+        voltage_frac = -voltage_frac;
+    }
+    
+    // 格式化电压值，精度保留1位小数
+    sprintf(response_str, "{\"voltage_value\":%d.%01d}", voltage_int, voltage_frac);
     
     // 返回 JSON 字符串作为查询结果
     emMCP_ResponseValue(response_str);
-     cJSON_free(response_str);
-    // 释放 JSON 对象占用的内存
-    cJSON_Delete(response);
 }
 
 /**
- * @brief  查询电流值的回调函数
- * @param  arg 未使用参数
- * @note   该函数用于查询当前电流值
+ * @brief 查询电流值的回调函数
+ * @param arg 未使用参数（保留接口一致性）
+ * @note  通过INA226芯片读取当前电流值
+ *        使用手动整数+小数分离方式避免sprintf %f不支持的问题
  */
 void emMCP_GetCurrentHandler(void *arg)
 {
-    // 创建 JSON 对象用于响应
-    cJSON *response = cJSON_CreateObject();
+    char response_str[64];
     
-    // 获取电流值
+    // 通过INA226读取电流值 (单位: 安培)
     float current = INA226_GetCurrent(&my_power_monitor);
-    char formatted[16];
-// 单位：A，保留 3 位小数（如 1.234 A）
-snprintf(formatted, sizeof(formatted), "%.3f", current);
-    // 添加电流值到响应
-    cJSON_AddStringToObject(response, "current_value", formatted);
     
-    // 将 JSON 对象序列化为字符串
-    char *response_str = cJSON_PrintUnformatted(response);
+    // 手动拆分：整数部分和小数部分（3位小数）
+    int current_int = (int)current;
+    int current_frac = (int)((current - current_int) * 1000);
+    if (current_frac < 0) {
+        current_frac = -current_frac;
+    }
+    
+    // 格式化电流值，精度保留3位小数
+    sprintf(response_str, "{\"current_value\":%d.%03d}", current_int, current_frac);
     
     // 返回 JSON 字符串作为查询结果
     emMCP_ResponseValue(response_str);
-    cJSON_free(response_str);
-    // 释放 JSON 对象占用的内存
-   // cJSON_Delete(response);
 }
 
 /**
- * @brief  查询功率值的回调函数
- * @param  arg 未使用参数
- * @note   该函数用于查询当前功率值
+ * @brief 查询功率值的回调函数
+ * @param arg 未使用参数（保留接口一致性）
+ * @note  通过INA226芯片读取当前功率值
+ *        使用手动整数+小数分离方式避免sprintf %f不支持的问题
  */
 void emMCP_GetPowerHandler(void *arg)
 {
-    // 创建 JSON 对象用于响应
-    cJSON *response = cJSON_CreateObject();
+    char response_str[64];
     
-    // 获取功率值
+    // 通过INA226读取功率值 (单位: 瓦)
     float power = INA226_GetPower(&my_power_monitor);
     
-    // 添加功率值到响应
-    cJSON_AddNumberToObject(response, "power_value", power);
+    // 手动拆分：整数部分和小数部分（3位小数）
+    int power_int = (int)power;
+    int power_frac = (int)((power - power_int) * 1000);
+    if (power_frac < 0) {
+        power_frac = -power_frac;
+    }
     
-    // 将 JSON 对象序列化为字符串
-    char *response_str = cJSON_PrintUnformatted(response);
+    // 格式化功率值，精度保留3位小数
+    sprintf(response_str, "{\"power_value\":%d.%03d}", power_int, power_frac);
     
     // 返回 JSON 字符串作为查询结果
     emMCP_ResponseValue(response_str);
-    
-    // 释放 JSON 对象占用的内存
-    cJSON_Delete(response);
 }
