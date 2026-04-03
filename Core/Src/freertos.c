@@ -153,7 +153,7 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
 
-HAL_UART_Transmit(&huart1, "Hello, World!", 13, 100);
+//HAL_UART_Transmit(&huart1, "Hello, World!", 13, 100);
 //HAL_UART_Transmit(&huart2, "Hello, World!", 13, 100);
 
 
@@ -167,10 +167,13 @@ axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
  if (axk_ch224_init() == 0) { 
    axk_ssd1306_show_utf8_str(24, 2, "CH224 OK");
 
+
   if (axk_ch224_set_mode(AXK_CH224_VOUT_PPS) == 0) {
-    axk_ch224_set_pps_vout(9.0);
+    handle_serial_pps_change(5.8f);
+
+   // axk_ch224_set_pps_vout(5.4);
   }else {
-    axk_ch224_set_vout(AXK_CH224_VOUT_9V);
+    axk_ch224_set_vout(AXK_CH224_VOUT_5V);
   }
   }else {
    axk_ssd1306_show_utf8_str(24, 2, "CH224 ERROE");
@@ -184,7 +187,7 @@ axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
 * 假设你的硬件电路上使用的是 10 毫欧 (0.01 欧姆) 的采样电阻
 * 并且你的可调电源预计最大电流为 2.0 A
 */
- if (INA226_Init(&my_power_monitor, 0.01f, 2.0f) == 0) {               
+ if (INA226_Init(&my_power_monitor, 0.01f, 3.0f) == 0) {               
      axk_ssd1306_show_utf8_str(24, 4, "INA226  OK");
  } else {
      axk_ssd1306_show_utf8_str(24, 4, "INA226 ERROE");
@@ -224,6 +227,7 @@ axk_ssd1306_clear_screen();//初始化完成清屏
     
     // 只有当状态是 osOK（代表成功拿到了新的按键消息）时，才去处理按键
     if (status == osOK) {
+        
         switch (key_num) {
             case 1:
                KEY_Output(2); // 设置输出反转
@@ -234,12 +238,15 @@ axk_ssd1306_clear_screen();//初始化完成清屏
                 if(key_V > 4){
                     key_V = 0;   // 如果超过最大档位，回到 0 档
                 }
+                  handle_key_voltage_change(key_V); // 根据当前按键档位设置电压输出
                 break;
             case 3:
                 key_V--;       // 电压档位减 1
                 if(key_V < 0){
                     key_V = 4;   // 如果小于最小档位，循环到最大档
+                    
                 }
+                 handle_key_voltage_change(key_V); // 根据当前按键档位设置电压输出
                 break;
         }
         
@@ -250,30 +257,8 @@ axk_ssd1306_clear_screen();//初始化完成清屏
 
     KEY_state();   // 读取输出引脚状态并显示
     // 下面的代码不受按键影响，每次循环都会正常刷新屏幕和电压
-    handle_key_voltage_change(key_V); // 根据当前按键档位设置电压输出
-     // 读取并显示电压
-    // switch (key_V) {
-    //     case 0:
-    //         axk_ch224_set_vout(AXK_CH224_VOUT_5V);         // 设置输出 5V
-    //         axk_ssd1306_show_utf8_str(72, 0, " 5");   // 屏幕显示 5
-    //         break;
-    //     case 1:
-    //         axk_ch224_set_vout(AXK_CH224_VOUT_9V);         // 设置输出 9V
-    //         axk_ssd1306_show_utf8_str(72, 0, " 9");        // 屏幕显示 9
-    //         break;
-    //     case 2:
-    //         axk_ch224_set_vout(AXK_CH224_VOUT_12V);        // 设置输出 12V
-    //         axk_ssd1306_show_utf8_str(72, 0, "12");        // 屏幕显示 12
-    //         break;
-    //     case 3:
-    //         axk_ch224_set_vout(AXK_CH224_VOUT_15V);        // 设置输出 15V
-    //         axk_ssd1306_show_utf8_str(72, 0, "15");        // 屏幕显示 15
-    //         break;
-    //     case 4:
-    //         axk_ch224_set_vout(AXK_CH224_VOUT_20V);        // 设置输出 20V
-    //         axk_ssd1306_show_utf8_str(72, 0, "20");        // 屏幕显示 20
-    //         break;
-    // }
+
+
 
      //
       // 读取并显示电压
@@ -338,31 +323,32 @@ __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（H
   emMCP_AddToolToToolList(&Output);   // 添加工具到工具列表
 
 
-  // static emMCP_tool_t voltage;//创建工具
-  // voltage.name = "电压值";//工具名称，保持唯一性
-  // voltage.description = "用来设置与查询电压值";//工具的功能描述
-  // voltage.inputSchema.properties[0].name = "voltage_value";//属性指令，AI 通过这个指令发送命令
-  // voltage.inputSchema.properties[0].description = "设置电压值,设置为具体的电压数值,范围为5.0伏到20.0伏,设置精度为小数点一位,查询电压值发送null";  //指令描述，AI 通过这个描述理解指令
-  // voltage.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  // voltage.setRequestHandler = emMCP_SetVoltageHandler;//设置控制回调
-  // voltage.checkRequestHandler = emMCP_GetVoltageHandler;//设置查询回调
-  // emMCP_AddToolToToolList(&voltage);   // 添加工具到工具列表
+  static emMCP_tool_t voltage;//创建工具
+  voltage.name = "电压值";//工具名称，保持唯一性
+  voltage.description = "用来设置与查询电压值";//工具的功能描述
+  voltage.inputSchema.properties[0].name = "voltage_value";//属性指令，AI 通过这个指令发送命令
+  voltage.inputSchema.properties[0].description =
+   "设置电压值,设置为具体的电压数值,范围为5.0伏到20.0伏,设置精度为小数点一位,单位为伏,查询电压值发送null";  //指令描述，AI 通过这个描述理解指令
+  voltage.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+  voltage.setRequestHandler = emMCP_SetVoltageHandler;//设置控制回调
+  voltage.checkRequestHandler = emMCP_GetVoltageHandler;//设置查询回调
+  emMCP_AddToolToToolList(&voltage);   // 添加工具到工具列表
 
 
-  static emMCP_tool_t current;//创建工具
-  current.name = "电流值";//工具名称，保持唯一性
-  current.description = "用来查询电流值";//工具的功能描述
-  current.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
-  current.inputSchema.properties[0].description = "查询电流值发送null,单位:安培";  //指令描述，AI 通过这个描述理解指令
-  current.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  current.checkRequestHandler = emMCP_GetCurrentHandler;//设置查询回调
-  emMCP_AddToolToToolList(&current);   // 添加工具到工具列表
+  // static emMCP_tool_t current;//创建工具
+  // current.name = "电流值";//工具名称，保持唯一性
+  // current.description = "用来查询电流值";//工具的功能描述
+  // current.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
+  // current.inputSchema.properties[0].description = "查询电流值发送null,单位:安培";  //指令描述，AI 通过这个描述理解指令
+  // current.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+  // current.checkRequestHandler = emMCP_GetCurrentHandler;//设置查询回调
+  // emMCP_AddToolToToolList(&current);   // 添加工具到工具列表
 
   // static emMCP_tool_t power;//创建工具
   // power.name = "功率值";//工具名称，保持唯一性
   // power.description = "用来查询功率值";//工具的功能描述
   // power.inputSchema.properties[0].name = "power_value";//属性指令，AI 通过这个指令发送命令
-  // power.inputSchema.properties[0].description = "查询功率值发送null，单位:瓦";  //指令描述，AI 通过这个描述理解指令
+  // power.inputSchema.properties[0].description = "查询功率值发送null,单位:瓦";  //指令描述，AI 通过这个描述理解指令
   // power.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
   // power.checkRequestHandler = emMCP_GetPowerHandler;//设置查询回调
   // emMCP_AddToolToToolList(&power);   // 添加工具到工具列表
@@ -376,7 +362,7 @@ __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（H
   {
   emMCP_TickHandle(10);
     KEY_NUM();  
-   // osDelay(10);
+    osDelay(10);
   }
   /* USER CODE END StartKeyTask */
 }
