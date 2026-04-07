@@ -87,9 +87,9 @@ void KEY_Output(uint8_t num) {
  */
 void KEY_state(void) {
     if (HAL_GPIO_ReadPin(OutputKey_GPIO_Port, OutputKey_Pin) == GPIO_PIN_SET) {
-        axk_ssd1306_show_utf8_str(92, 6, "开");
+        axk_ssd1306_show_utf8_str(72, 6, "开");
     } else {
-        axk_ssd1306_show_utf8_str(92, 6, "关");
+        axk_ssd1306_show_utf8_str(72, 6, "关");
     }
 }
 

@@ -169,14 +169,12 @@ axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
 
 
   if (axk_ch224_set_mode(AXK_CH224_VOUT_PPS) == 0) {
-    handle_serial_pps_change(5.8f);
-
-   // axk_ch224_set_pps_vout(5.4);
+    handle_serial_pps_change(5.2f);
   }else {
     axk_ch224_set_vout(AXK_CH224_VOUT_5V);
   }
   }else {
-   axk_ssd1306_show_utf8_str(24, 2, "CH224 ERROE");
+   axk_ssd1306_show_utf8_str(24, 2, "CH224 ERROR");
      axk_ssd1306_show_utf8_str(24, 6, "I2C Cfg & HW");
   // while (1) {//死循环停在这里
   // }
@@ -190,7 +188,7 @@ axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
  if (INA226_Init(&my_power_monitor, 0.01f, 3.0f) == 0) {               
      axk_ssd1306_show_utf8_str(24, 4, "INA226  OK");
  } else {
-     axk_ssd1306_show_utf8_str(24, 4, "INA226 ERROE");
+     axk_ssd1306_show_utf8_str(24, 4, "INA226 ERROR");
      axk_ssd1306_show_utf8_str(24, 6, "I2C Cfg & HW");
     //  while (1) {//死循环停在这里
     //   }
@@ -198,7 +196,7 @@ axk_ssd1306_show_utf8_str(24, 0, "Dev Init...");
  
 
 
-osDelay(2000);
+osDelay(1000);
 axk_ssd1306_clear_screen();//初始化完成清屏
    
 
@@ -209,7 +207,7 @@ axk_ssd1306_clear_screen();//初始化完成清屏
   axk_ssd1306_show_utf8_str(0, 4, "功率(W):");
  
   axk_ssd1306_show_utf8_str(0, 6, "当前状态:");
-  axk_ssd1306_show_utf8_str(92, 6, "关");
+  //axk_ssd1306_show_utf8_str(92, 6, "关");
 
 
 
@@ -335,23 +333,23 @@ __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（H
   emMCP_AddToolToToolList(&voltage);   // 添加工具到工具列表
 
 
-  // static emMCP_tool_t current;//创建工具
-  // current.name = "电流值";//工具名称，保持唯一性
-  // current.description = "用来查询电流值";//工具的功能描述
-  // current.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
-  // current.inputSchema.properties[0].description = "查询电流值发送null,单位:安培";  //指令描述，AI 通过这个描述理解指令
-  // current.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  // current.checkRequestHandler = emMCP_GetCurrentHandler;//设置查询回调
-  // emMCP_AddToolToToolList(&current);   // 添加工具到工具列表
+  static emMCP_tool_t current;//创建工具
+  current.name = "电流值";//工具名称，保持唯一性
+  current.description = "用来查询电流值";//工具的功能描述
+  current.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
+  current.inputSchema.properties[0].description = "查询电流值发送null,单位:安培";  //指令描述，AI 通过这个描述理解指令
+  current.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+  current.checkRequestHandler = emMCP_GetCurrentHandler;//设置查询回调
+  emMCP_AddToolToToolList(&current);   // 添加工具到工具列表
 
-  // static emMCP_tool_t power;//创建工具
-  // power.name = "功率值";//工具名称，保持唯一性
-  // power.description = "用来查询功率值";//工具的功能描述
-  // power.inputSchema.properties[0].name = "power_value";//属性指令，AI 通过这个指令发送命令
-  // power.inputSchema.properties[0].description = "查询功率值发送null,单位:瓦";  //指令描述，AI 通过这个描述理解指令
-  // power.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  // power.checkRequestHandler = emMCP_GetPowerHandler;//设置查询回调
-  // emMCP_AddToolToToolList(&power);   // 添加工具到工具列表
+  static emMCP_tool_t power;//创建工具
+  power.name = "功率值";//工具名称，保持唯一性
+  power.description = "用来查询功率值";//工具的功能描述
+  power.inputSchema.properties[0].name = "power_value";//属性指令，AI 通过这个指令发送命令
+  power.inputSchema.properties[0].description = "查询功率值发送null,单位:瓦";  //指令描述，AI 通过这个描述理解指令
+  power.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+  power.checkRequestHandler = emMCP_GetPowerHandler;//设置查询回调
+  emMCP_AddToolToToolList(&power);   // 添加工具到工具列表
 
 
   emMCP_RegistrationTools(); // 注册工具到小安AI
