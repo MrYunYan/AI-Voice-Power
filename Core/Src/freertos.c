@@ -153,8 +153,8 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
 
-//HAL_UART_Transmit(&huart1, "Hello, World!", 13, 100);
-//HAL_UART_Transmit(&huart2, "Hello, World!", 13, 100);
+HAL_UART_Transmit(&huart1, "Hello, UART1!", 13, 100);
+HAL_UART_Transmit(&huart2, "Hello, UART2!", 13, 100);
 
 
   axk_ssd1306_init();
@@ -333,23 +333,23 @@ __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（H
   emMCP_AddToolToToolList(&voltage);   // 添加工具到工具列表
 
 
-  static emMCP_tool_t current;//创建工具
-  current.name = "电流值";//工具名称，保持唯一性
-  current.description = "用来查询电流值";//工具的功能描述
-  current.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
-  current.inputSchema.properties[0].description = "查询电流值发送null,单位:安培";  //指令描述，AI 通过这个描述理解指令
-  current.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  current.checkRequestHandler = emMCP_GetCurrentHandler;//设置查询回调
-  emMCP_AddToolToToolList(&current);   // 添加工具到工具列表
+  // static emMCP_tool_t current;//创建工具
+  // current.name = "电流值";//工具名称，保持唯一性
+  // current.description = "用来查询电流值";//工具的功能描述
+  // current.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
+  // current.inputSchema.properties[0].description = "查询电流值发送null,单位:安培";  //指令描述，AI 通过这个描述理解指令
+  // current.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+  // current.checkRequestHandler = emMCP_GetCurrentHandler;//设置查询回调
+  // emMCP_AddToolToToolList(&current);   // 添加工具到工具列表
 
-  static emMCP_tool_t power;//创建工具
-  power.name = "功率值";//工具名称，保持唯一性
-  power.description = "用来查询功率值";//工具的功能描述
-  power.inputSchema.properties[0].name = "power_value";//属性指令，AI 通过这个指令发送命令
-  power.inputSchema.properties[0].description = "查询功率值发送null,单位:瓦";  //指令描述，AI 通过这个描述理解指令
-  power.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  power.checkRequestHandler = emMCP_GetPowerHandler;//设置查询回调
-  emMCP_AddToolToToolList(&power);   // 添加工具到工具列表
+  // static emMCP_tool_t power;//创建工具
+  // power.name = "功率值";//工具名称，保持唯一性
+  // power.description = "用来查询功率值";//工具的功能描述
+  // power.inputSchema.properties[0].name = "power_value";//属性指令，AI 通过这个指令发送命令
+  // power.inputSchema.properties[0].description = "查询功率值发送null,单位:瓦";  //指令描述，AI 通过这个描述理解指令
+  // power.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+  // power.checkRequestHandler = emMCP_GetPowerHandler;//设置查询回调
+  // emMCP_AddToolToToolList(&power);   // 添加工具到工具列表
 
 
   emMCP_RegistrationTools(); // 注册工具到小安AI
