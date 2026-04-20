@@ -153,8 +153,8 @@ void StartDefaultTask(void *argument)
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
 
-HAL_UART_Transmit(&huart1, "Hello, UART1!", 13, 100);
-HAL_UART_Transmit(&huart2, "Hello, UART2!", 13, 100);
+//HAL_UART_Transmit(&huart1, "Hello, UART1!\r\n", 13, 100);
+//HAL_UART_Transmit(&huart2, "Hello, UART2!\r\n", 13, 100);
 
 
   axk_ssd1306_init();
@@ -331,6 +331,21 @@ __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（H
   voltage.setRequestHandler = emMCP_SetVoltageHandler;//设置控制回调
   voltage.checkRequestHandler = emMCP_GetVoltageHandler;//设置查询回调
   emMCP_AddToolToToolList(&voltage);   // 添加工具到工具列表
+
+  static emMCP_tool_t output_params;//创建工具
+  output_params.name = "设备输出参数";//工具名称，保持唯一性
+  output_params.description = "用来查询电流值与功率值";//工具的功能描述
+  output_params.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
+  output_params.inputSchema.properties[0].description = "查询电流值发送null,单位:安培";  //指令描述，AI 通过这个描述理解指令
+  output_params.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+
+  output_params.inputSchema.properties[1].name = "power_value";//属性指令，AI 通过这个指令发送命令
+  output_params.inputSchema.properties[1].description = "查询功率值发送null,单位:瓦";  //指令描述，AI 通过这个描述理解指令
+  output_params.inputSchema.properties[1].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
+
+  output_params.checkRequestHandler = emMCP_GetOutputParamsHandler;//查询回调
+  emMCP_AddToolToToolList(&output_params);   // 添加工具到工具列表
+
 
 
   // static emMCP_tool_t current;//创建工具

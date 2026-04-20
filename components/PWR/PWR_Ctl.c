@@ -153,33 +153,33 @@ void emMCP_GetVoltageHandler(void *arg)
 }
 
 /**
- * @brief 查询输出电流回调函数
- * @param arg 未使用参数
- * @note 通过INA226读取电流，精度0.001A
+ * @brief 查询设备输出参数（电流、功率）回调函数
+ * @param arg JSON对象，包含current_value和power_value字段
+ * @note 通过INA226读取电流和功率，同时返回两个参数的值
+ *       电流精度0.001A，功率精度0.001W
  */
-void emMCP_GetCurrentHandler(void *arg)
+void emMCP_GetOutputParamsHandler(void *arg)
 {
-    char response_str[64];
+    cJSON *param = (cJSON *)arg;
+    cJSON *current_item = cJSON_GetObjectItem(param, "current_value");
+    cJSON *power_item = cJSON_GetObjectItem(param, "power_value");
+    
     float current = INA226_GetCurrent(&my_power_monitor);
+    float power = INA226_GetPower(&my_power_monitor);
+    
+    // 处理电流值（保留3位小数）
     int current_int = (int)current;
     int current_frac = (int)((current - current_int) * 1000);
     if (current_frac < 0) current_frac = -current_frac;
-    sprintf(response_str, "{\"current_value\":%d.%03d}", current_int, current_frac);
-    emMCP_ResponseValue(response_str);
-}
-
-/**
- * @brief 查询输出功率回调函数
- * @param arg 未使用参数
- * @note 通过INA226读取功率，精度0.001W
- */
-void emMCP_GetPowerHandler(void *arg)
-{
-    char response_str[64];
-    float power = INA226_GetPower(&my_power_monitor);
+    
+    // 处理功率值（保留3位小数）
     int power_int = (int)power;
     int power_frac = (int)((power - power_int) * 1000);
     if (power_frac < 0) power_frac = -power_frac;
-    sprintf(response_str, "{\"power_value\":%d.%03d}", power_int, power_frac);
+    
+    // 构建响应JSON，同时返回电流和功率
+    char response_str[128];
+    sprintf(response_str, "{\"current_value\":%d.%03d,\"power_value\":%d.%03d}", 
+            current_int, current_frac, power_int, power_frac);
     emMCP_ResponseValue(response_str);
 }

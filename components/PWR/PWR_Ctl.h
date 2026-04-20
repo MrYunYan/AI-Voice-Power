@@ -30,11 +30,8 @@ void emMCP_GetRelayHandler(void *arg);
 void emMCP_SetVoltageHandler(void *arg);
 void emMCP_GetVoltageHandler(void *arg);
 
-// 电流查询回调函数
-void emMCP_GetCurrentHandler(void *arg);
-
-// 功率查询回调函数
-void emMCP_GetPowerHandler(void *arg);
+// 设备输出参数（电流、功率）查询回调函数
+void emMCP_GetOutputParamsHandler(void *arg);
 
 
 #endif

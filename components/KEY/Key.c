@@ -6,6 +6,7 @@
 #include "axk_ssd1306.h"
 #include "cmsis_os2.h"
 #include "ina226.h"
+#include "stm32f1xx_hal_gpio.h"
 
 extern osMessageQueueId_t BtnQueueHandle;
 
@@ -68,13 +69,13 @@ void KEY_NUM(void) {
 void KEY_Output(uint8_t num) {
     switch (num) {
         case 0: // 设置关
-            HAL_GPIO_WritePin(OutputKey_GPIO_Port, OutputKey_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
             break;    
         case 1: // 设置开
-            HAL_GPIO_WritePin(OutputKey_GPIO_Port, OutputKey_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
             break;
         case 2: // 翻转
-            HAL_GPIO_TogglePin(OutputKey_GPIO_Port, OutputKey_Pin);
+            HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
             break;
     }
 }
@@ -86,7 +87,7 @@ void KEY_Output(uint8_t num) {
  * - 在 OLED 屏幕上显示当前输出状态（开/关）
  */
 void KEY_state(void) {
-    if (HAL_GPIO_ReadPin(OutputKey_GPIO_Port, OutputKey_Pin) == GPIO_PIN_SET) {
+    if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) == GPIO_PIN_SET) {
         axk_ssd1306_show_utf8_str(72, 6, "开");
     } else {
         axk_ssd1306_show_utf8_str(72, 6, "关");
