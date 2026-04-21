@@ -5,6 +5,8 @@
 #include "gpio.h"
 #include "main.h"
 #include "axk_ch224.h"
+#include "stm32f103xb.h"
+#include "stm32f1xx_hal_gpio.h"
 #include "uartPort.h"
 #include <stdio.h>
 
@@ -70,12 +72,12 @@ void emMCP_SetRelayHandler(void *arg)
     cJSON *led_state = cJSON_GetObjectItem(param, "power_state");
     if (led_state != NULL) {
         if (led_state->valueint == true) {
-            HAL_GPIO_WritePin(OutputKey_GPIO_Port, OutputKey_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
             sys_ctrl.is_output_on = 1;
             emMCP_ResponseValue("{\"power_state\":true}");
         } else if (led_state->valueint == false) {
             sys_ctrl.is_output_on = 0;
-            HAL_GPIO_WritePin(OutputKey_GPIO_Port, OutputKey_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
             emMCP_ResponseValue("{\"power_state\":false}");
         }
     }
@@ -89,7 +91,7 @@ void emMCP_SetRelayHandler(void *arg)
 void emMCP_GetRelayHandler(void *arg)
 {
     char response_str[64];
-    if (HAL_GPIO_ReadPin(OutputKey_GPIO_Port, OutputKey_Pin) == GPIO_PIN_SET) {
+    if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) == GPIO_PIN_SET) {
         sprintf(response_str, "{\"power_state\":true}");
     } else {
         sprintf(response_str, "{\"power_state\":false}");
