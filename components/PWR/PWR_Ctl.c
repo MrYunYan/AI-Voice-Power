@@ -108,7 +108,7 @@ void emMCP_SetVoltageHandler(void *arg)
 {
     cJSON *param = (cJSON *)arg;
     cJSON *voltage_value = cJSON_GetObjectItem(param, "voltage_value");
-    if (voltage_value != NULL && voltage_value->valuedouble != 0) {
+    if (voltage_value != NULL) {
         float target_voltage = (float)voltage_value->valuedouble;
         if (target_voltage >= 5.0f && target_voltage <= 20.0f) {
             if (axk_ch224_set_mode(AXK_CH224_VOUT_PPS) == 0) {
@@ -119,18 +119,12 @@ void emMCP_SetVoltageHandler(void *arg)
                     int voltage_frac = (int)((target_voltage - voltage_int) * 10);
                     if (voltage_frac < 0) voltage_frac = -voltage_frac;
                     char response_str[64];
-                    sprintf(response_str, "{\"voltage_value\":%d.%01d}", voltage_int, voltage_frac);
+                    sprintf(response_str, "{\"voltage_value\":\"%d.%01d\"}", voltage_int, voltage_frac);
                     emMCP_ResponseValue(response_str);
-                } else {
-                    emMCP_ResponseValue("{\"error\":\"Failed to set voltage\"}");
                 }
             }
-        } else {
-            emMCP_ResponseValue("{\"error\":\"Voltage out of range (5.0V - 20.0V)\"}");
         }
-    } else {
-        emMCP_ResponseValue("{\"error\":\"Invalid voltage parameter\"}");
-    }
+    } 
 }
 
 /**
@@ -150,7 +144,7 @@ void emMCP_GetVoltageHandler(void *arg)
     int voltage_int = (int)voltage_to_report;
     int voltage_frac = (int)((voltage_to_report - voltage_int) * 10);
     if (voltage_frac < 0) voltage_frac = -voltage_frac;
-    sprintf(response_str, "{\"voltage_value\":%d.%01d}", voltage_int, voltage_frac);
+    sprintf(response_str, "{\"voltage_value\":\"%d.%01d\"}", voltage_int, voltage_frac);
     emMCP_ResponseValue(response_str);
 }
 
@@ -181,7 +175,7 @@ void emMCP_GetOutputParamsHandler(void *arg)
     
     // 构建响应JSON，同时返回电流和功率
     char response_str[128];
-    sprintf(response_str, "{\"current_value\":%d.%03d,\"power_value\":%d.%03d}", 
+    sprintf(response_str, "{\"current_value\":\"%d.%03d\",\"power_value\":\"%d.%03d\"}", 
             current_int, current_frac, power_int, power_frac);
     emMCP_ResponseValue(response_str);
 }

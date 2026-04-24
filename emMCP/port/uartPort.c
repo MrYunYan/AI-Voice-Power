@@ -92,7 +92,7 @@ int uartPortRecvData(char *data, int len)
     g_uart_rx_count++;
     g_uart_rx_size = copy_len;
 
-    uart_data_buf = data;
+   // uart_data_buf = data;
     emMCP_UpdateUartRecv(true);
     return 0;
 }

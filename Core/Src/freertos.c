@@ -335,15 +335,6 @@ __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（H
     .setRequestHandler=emMCP_SetRelayHandler,
     .checkRequestHandler=emMCP_GetRelayHandler,
   };
-//  static emMCP_tool_t Output;//创建工具
-//   Output.name = "设备输出开关";//工具名称，保持唯一性
-//   Output.description = "用于设置与查询设备输出状态";//工具的功能描述
-//   Output.inputSchema.properties[0].name = "power_state";//属性指令，AI 通过这个指令发送命令
-//   Output.inputSchema.properties[0].description = "控制设备输出开关,打开:true,关闭为:false,查询为null";  //指令描述，AI 通过这个描述理解指令
-//   Output.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_BOOLEAN;//指令类型，AI 通过这个类型发送相对应的数据
-//   Output.setRequestHandler = emMCP_SetRelayHandler;//设置控制回调
-//   Output.checkRequestHandler = emMCP_GetRelayHandler;//设置查询回调
-   
  static emMCP_tool_t voltage={
     .name = "电压值",
     .description="用来设置与查询电压值",
@@ -355,71 +346,25 @@ __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);//关闭DMA传输过半中断（H
     .checkRequestHandler=emMCP_GetVoltageHandler,
   };
 
-  // static emMCP_tool_t voltage;//创建工具
-  // voltage.name = "电压值";//工具名称，保持唯一性
-  // voltage.description = "用来设置与查询电压值";//工具的功能描述
-  // voltage.inputSchema.properties[0].name = "voltage_value";//属性指令，AI 通过这个指令发送命令
-  // voltage.inputSchema.properties[0].description =
-  //  "设置电压值,设置为具体的电压数值,范围为5.0伏到20.0伏,设置精度为小数点一位,单位为伏,查询电压值发送null";  //指令描述，AI 通过这个描述理解指令
-  // voltage.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  // voltage.setRequestHandler = emMCP_SetVoltageHandler;//设置控制回调
-  // voltage.checkRequestHandler = emMCP_GetVoltageHandler;//设置查询回调
+
 
   static emMCP_tool_t output_params={
-    .name = "设备输出参数",
+    .name = "输出电流与功率参数",
     .description="用来查询电流值与功率值",
     .inputSchema.properties[0].name = "current_value",
     .inputSchema.properties[0].description = "查询电流值发送null,单位:安培",
-    .inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER,
+    .inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_BOOLEAN,
     .inputSchema.properties[1].name = "power_value",
     .inputSchema.properties[1].description = "查询功率值发送null,单位:瓦",
-    .inputSchema.properties[1].type = MCP_SERVER_TOOL_TYPE_NUMBER, 
+    .inputSchema.properties[1].type = MCP_SERVER_TOOL_TYPE_BOOLEAN, 
     .checkRequestHandler=emMCP_GetOutputParamsHandler,
   };
 
-
-  // static emMCP_tool_t output_params;//创建工具
-  // output_params.name = "设备输出参数";//工具名称，保持唯一性
-  // output_params.description = "用来查询电流值与功率值";//工具的功能描述
-  // output_params.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
-  // output_params.inputSchema.properties[0].description = "查询电流值发送null,单位:安培";  //指令描述，AI 通过这个描述理解指令
-  // output_params.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  // output_params.inputSchema.properties[1].name = "power_value";//属性指令，AI 通过这个指令发送命令
-  // output_params.inputSchema.properties[1].description = "查询功率值发送null,单位:瓦";  //指令描述，AI 通过这个描述理解指令
-  // output_params.inputSchema.properties[1].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  // output_params.checkRequestHandler = emMCP_GetOutputParamsHandler;//查询回调
 
   emMCP_AddToolToToolList(&Output);   // 添加工具到工具列表
   emMCP_AddToolToToolList(&voltage);   // 添加工具到工具列表
   emMCP_AddToolToToolList(&output_params);   // 添加工具到工具列表
 
-
-
-  // static emMCP_tool_t current;//创建工具
-  // current.name = "电流值";//工具名称，保持唯一性
-  // current.description = "用来查询电流值";//工具的功能描述
-  // current.inputSchema.properties[0].name = "current_value";//属性指令，AI 通过这个指令发送命令
-  // current.inputSchema.properties[0].description = "查询电流值发送null,单位:安培";  //指令描述，AI 通过这个描述理解指令
-  // current.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-  // current.checkRequestHandler = emMCP_GetCurrentHandler;//设置查询回调
-  // emMCP_AddToolToToolList(&current);   // 添加工具到工具列表
-
-//   static emMCP_tool_t power;//创建工具
-//   power.name = "功率值";//工具名称，保持唯一性
-//   power.description = "用来查询功率值";//工具的功能描述
-//   power.inputSchema.properties[0].name = "power_value";//属性指令，AI 通过这个指令发送命令
-//   power.inputSchema.properties[0].description = "查询功率值发送null,单位:瓦";  //指令描述，AI 通过这个描述理解指令
-//   power.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-// //  power.checkRequestHandler = emMCP_GetPowerHandler;//设置查询回调
-//   emMCP_AddToolToToolList(&power);   // 添加工具到工具列表
-//   static emMCP_tool_t power;//创建工具
-//   power.name = "功率值";//工具名称，保持唯一性
-//   power.description = "用来查询功率值";//工具的功能描述
-//   power.inputSchema.properties[0].name = "power_value";//属性指令，AI 通过这个指令发送命令
-//   power.inputSchema.properties[0].description = "查询功率值发送null,单位:瓦";  //指令描述，AI 通过这个描述理解指令
-//   power.inputSchema.properties[0].type = MCP_SERVER_TOOL_TYPE_NUMBER;//指令类型，AI 通过这个类型发送相对应的数据
-// //  power.checkRequestHandler = emMCP_GetPowerHandler;//设置查询回调
-//   emMCP_AddToolToToolList(&power);   // 添加工具到工具列表
 
 
   emMCP_RegistrationTools(); // 注册工具到小安AI
@@ -441,11 +386,12 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
 
     if (huart->Instance == USART1)
     {
-
+   HAL_UARTEx_ReceiveToIdle_DMA(&huart1,  (uint8_t *)rxBuffer,  sizeof(rxBuffer));
        
   //调用emMCP接收函数
     uartPortRecvData((char *)rxBuffer, Size);
-   HAL_UARTEx_ReceiveToIdle_DMA(&huart1,  (uint8_t *)rxBuffer,  sizeof(rxBuffer));
+
+
         // 关闭DMA传输过半中断（HAL库默认开启，但我们只需要接收完成中断）
         __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
     }
