@@ -49,23 +49,37 @@ emMCP_LogLevel log_level = emMCP_LOG_LEVEL_DEBUG;
  * 该数组用于将AI设备返回的字符串状态映射到对应的emMCP事件，
  * 用于事件的快速匹配和转换。高频场景优先放在前面，减少比较次数。
  */
+// 内存优化：精简状态映射表，仅保留核心功能
+// 用户可通过定义 EMCP_FULL_STATUS_MAP 启用完整功能
+#ifndef EMCP_FULL_STATUS_MAP
 static const status_map_entry_t status_map[] = {
-    // 高频场景优先放在前面，减少比较次数
+    // 核心功能（约节省 50% Flash）
     {"OK", 2, emMCP_EVENT_CMD_OK, false},                           // 命令执行成功
-    {"ERROR", 5, emMCP_EVENT_CMD_ERROR, true},                      // 命令执行错误（前缀匹配，匹配所有以ERROR开头的字符串）
+    {"ERROR", 5, emMCP_EVENT_CMD_ERROR, true},                      // 命令执行错误
     {"AI Start", 8, emMCP_EVENT_AI_START, false},                   // AI设备启动完成
-    {"WIFI_CONNECTED", 12, emMCP_EVENT_AI_WIFI_CONNECTED, false},   // WIFI连接成功
-    {"WIFI_GOT_IP", 11, emMCP_EVENT_AI_WIFI_GOT_IP, false},         // WIFI获取到IP地址
-    {"1.WiFi connect OK", 16, emMCP_EVENT_AI_WIFI_CONNNECT, false}, // WiFi连接成功（旧版本格式）
     {"2.WakeUP", 8, emMCP_EVENT_AI_WAKE, false},                    // AI设备唤醒
     {"3.Sleep", 6, emMCP_EVENT_AI_SLEEP, false},                    // AI设备进入睡眠
-    {"4.NetCFG", 7, emMCP_EVENT_AI_NETCFG, false},                  // 网络配置模式
-    {"5.NetERR", 7, emMCP_EVENT_AI_NETERR, false},                  // 网络错误
-    {"6.OTAUPDATE", 10, emMCP_EVENT_AI_OTAUPDATE, false},           // OTA更新中
-    {"7.OTA OK", 7, emMCP_EVENT_AI_OTAOK, false},                   // OTA更新成功
-    {"8.OTA ERR", 8, emMCP_EVENT_AI_OTAERR, false},                 // OTA更新错误
     {NULL, 0, emMCP_EVENT_NONE, false}                              // 结束标记
 };
+#else
+static const status_map_entry_t status_map[] = {
+    // 完整功能
+    {"OK", 2, emMCP_EVENT_CMD_OK, false},
+    {"ERROR", 5, emMCP_EVENT_CMD_ERROR, true},
+    {"AI Start", 8, emMCP_EVENT_AI_START, false},
+    {"WIFI_CONNECTED", 12, emMCP_EVENT_AI_WIFI_CONNECTED, false},
+    {"WIFI_GOT_IP", 11, emMCP_EVENT_AI_WIFI_GOT_IP, false},
+    {"1.WiFi connect OK", 16, emMCP_EVENT_AI_WIFI_CONNNECT, false},
+    {"2.WakeUP", 8, emMCP_EVENT_AI_WAKE, false},
+    {"3.Sleep", 6, emMCP_EVENT_AI_SLEEP, false},
+    {"4.NetCFG", 7, emMCP_EVENT_AI_NETCFG, false},
+    {"5.NetERR", 7, emMCP_EVENT_AI_NETERR, false},
+    {"6.OTAUPDATE", 10, emMCP_EVENT_AI_OTAUPDATE, false},
+    {"7.OTA OK", 7, emMCP_EVENT_AI_OTAOK, false},
+    {"8.OTA ERR", 8, emMCP_EVENT_AI_OTAERR, false},
+    {NULL, 0, emMCP_EVENT_NONE, false}
+};
+#endif
 /**
  * @brief emMCP 串口数据缓存区
  *
@@ -209,9 +223,11 @@ int emMCP_AddToolToToolList(emMCP_tool_t *tool)
     tmp_tool->checkRequestHandler = emMCP_check_CMDCallback; // 设置默认的命令检查回调函数
 
   // 将工具信息存储到内存数组中
+  int tool_added = 0;
   if (mcp_tool_arry[0].name == NULL) // 检查工具数组是否为空
   {
     memcpy(&mcp_tool_arry[0], tmp_tool, sizeof(emMCP_tool_t)); // 复制到第一个位置
+    tool_added = 1;
   }
   else // 工具数组不为空
   {
@@ -221,9 +237,16 @@ int emMCP_AddToolToToolList(emMCP_tool_t *tool)
       if (mcp_tool_arry[i].name == NULL) // 找到空位置
       {
         memcpy(&mcp_tool_arry[i], tmp_tool, sizeof(emMCP_tool_t)); // 复制工具信息到空位置
+        tool_added = 1;
         break;
       }
     }
+  }
+  // 检查是否成功添加工具（数组已满）
+  if (!tool_added)
+  {
+    emMCP_log_error("Tool list is full, max %d tools", MCP_SERVER_TOOL_NUMBLE_MAX);
+    return -32604; // 工具列表已满
   }
 
   // 创建JSON格式的工具对象
@@ -415,25 +438,28 @@ emMCP_ResponsiveToolRequest(char *tool_name, cJSON *arguments)
 
   if (strcmp(mcp_tool_arry[tools_numble].name, tool_name) == 0)
   { // 确认找到了匹配的工具
-    // 判断 arguments 参数是否为 NULL
-    if (arguments->type == cJSON_Object && arguments->child == NULL)
-    {                                                             // 如果参数是空对象
+    // 判断 arguments 参数是否为 NULL 或空对象
+    if (arguments == NULL || (arguments->type == cJSON_Object && arguments->child == NULL))
+    {                                                             // 如果参数为空或空对象
       mcp_tool_arry[tools_numble].checkRequestHandler(arguments); // 调用检查请求处理器
       return;                                                     // 返回
     }
+    // 判断参数值是否为 null（如 {"sht3x.read":null}）
+    if (arguments->child != NULL && arguments->child->type == cJSON_NULL)
+    {
+      mcp_tool_arry[tools_numble].checkRequestHandler(arguments); // 调用检查请求处理器
+      return;
+    }
     //  判断是否为 methods 参数
-    if (cJSON_GetObjectItem(arguments, METHODS) != NULL)
+    cJSON *methods_item = cJSON_GetObjectItemCaseSensitive(arguments, METHODS);
+    if (methods_item != NULL)
     {                                                // 检查是否有methods参数
       mcp_tool_arry[tools_numble].setRequestHandler( // 调用设置请求处理器
-          cJSON_GetObjectItem(arguments, METHODS));
-    }
-    else if ((arguments->type == cJSON_Object && arguments->child == NULL) || (arguments->type == cJSON_Object && arguments->child != NULL && arguments->child->type != cJSON_NULL))
-    {
-      mcp_tool_arry[tools_numble].setRequestHandler(arguments); // 调用设置请求处理器
+          methods_item);
     }
     else
     {
-      mcp_tool_arry[tools_numble].checkRequestHandler(arguments); // 调用检查请求处理器
+      mcp_tool_arry[tools_numble].setRequestHandler(arguments); // 调用设置请求处理器
     }
     return; // 返回
   }
@@ -474,28 +500,48 @@ int emMCP_CheckUartSendStatus(void)
  */
 int emMCP_RegistrationTools(void)
 { // 向AI设备注册工具
-  if (emMCP_dev->tools_root == NULL ||
-      emMCP_dev == NULL || // 检查设备及工具根对象是否有效
+  if (emMCP_dev == NULL ||
+      emMCP_dev->tools_root == NULL || // 检查设备及工具根对象是否有效
       emMCP_dev->tools_arry == NULL)
   {
-    emMCP_log_error("tools_root is NULL"); // 记录错误日志
-    return -1;                             // 返回错误码
+    emMCP_log_error("emMCP_dev or tools is NULL"); // 记录错误日志
+    return -1;                                     // 返回错误码
   }
-  emMCP_dev->tools_str =
-      cJSON_PrintUnformatted(emMCP_dev->tools_root); // 将工具信息转为字符串
-  char *cmd =
-      emMCP_malloc(strlen(emMCP_dev->tools_str) + 64); // 分配命令字符串内存
-  if (cmd != NULL &&
-      emMCP_dev->tools_str != NULL)
-  {                                                                                                        // 检查内存分配和工具字符串是否有效
-    memset(cmd, 0, strlen(emMCP_dev->tools_str) + 64);                                                     // 清零命令缓冲区
-    sprintf(cmd, "mcp-tool {\"role\":\"MCU\",\"msgType\":\"MCP\",\"data\":%s}\r\n", emMCP_dev->tools_str); // 构造注册工具的命令
-    uartPortSendData(cmd, strlen(cmd));                                                                    // 发送命令到串口
+  emMCP_dev->tools_str = cJSON_PrintUnformatted(emMCP_dev->tools_root);
+  if (emMCP_dev->tools_str == NULL)
+  {
+    emMCP_log_error("Failed to print tools JSON");
+    cJSON_Delete(emMCP_dev->tools_root);
+    emMCP_dev->tools_root = NULL;
+    return -1;
   }
-  emMCP_free(cmd);                     // 释放命令字符串内存
-  if (emMCP_dev->tools_str != NULL)    // 如果工具字符串存在
-    cJSON_free(emMCP_dev->tools_str);  // 释放工具字符串内存
-  cJSON_Delete(emMCP_dev->tools_root); // 删除工具根对象
+
+  size_t tools_str_len = strlen(emMCP_dev->tools_str);
+  size_t cmd_buf_size = tools_str_len + 64;
+  char *cmd = emMCP_malloc(cmd_buf_size);
+
+  if (cmd != NULL)
+  {
+    memset(cmd, 0, cmd_buf_size);
+    int written = snprintf(cmd, cmd_buf_size, "mcp-tool {\"role\":\"MCU\",\"msgType\":\"MCP\",\"data\":%s}\r\n", emMCP_dev->tools_str);
+    if (written > 0 && written < cmd_buf_size)
+    { // 检查是否完整写入
+      uartPortSendData(cmd, strlen(cmd));
+    }
+    else
+    {
+      emMCP_log_error("Command buffer too small");
+    }
+    emMCP_free(cmd);
+  }
+  else
+  {
+    emMCP_log_error("Failed to allocate memory for cmd buffer");
+  }
+
+  cJSON_free(emMCP_dev->tools_str);
+  emMCP_dev->tools_str = NULL;
+  cJSON_Delete(emMCP_dev->tools_root);
   emMCP_dev->tools_root = NULL;        // 将工具根对象设为空
   emMCP_dev->isUartRecv = false;       // 重置串口接收标志
   return 0;                            // 返回成功
@@ -533,8 +579,7 @@ static emMCP_event_t emMCP_ReturnEvent(
     cJSON_Delete(root);      // 删除JSON对象
     return emMCP_EVENT_NONE; // 返回无事件
   }
-  cJSON *msgType =
-      cJSON_GetObjectItemCaseSensitive(root, "msgType"); // 获取消息类型字段
+  cJSON *msgType = cJSON_GetObjectItemCaseSensitive(root, "msgType"); // 获取消息类型字段
   cJSON *msgType_param = NULL;                           // 消息参数指针
   // 消息类型为status
   if (msgType != NULL &&
@@ -619,6 +664,8 @@ static emMCP_event_t emMCP_ReturnEvent(
                                 msgType_param); // 响应工具请求
     //   }
     // }
+    cJSON_Delete(root);
+    return emMCP_EVENT_NONE; // 已内部处理，不触发 EventCallback
   }
   else if (msgType != NULL && strcmp(msgType->valuestring, "mcp_check") == 0)
   {                                               // 如果是MCP检查消息
@@ -643,6 +690,8 @@ static emMCP_event_t emMCP_ReturnEvent(
     // 处理MCP检查工具请求
     emMCP_ResponsiveToolRequest(mcp_toolsname->valuestring,
                                 msgType_param); // 响应工具请求
+    cJSON_Delete(root);
+    return emMCP_EVENT_NONE; // 已内部处理，不触发 EventCallback
   }
   else if (msgType != NULL && strcmp(msgType->valuestring, "MCP Text") == 0)
   {                                          // 如果是MCP文本消息
@@ -657,18 +706,24 @@ static emMCP_event_t emMCP_ReturnEvent(
       return emMCP_EVENT_NONE; // 返回无事件
     }
   }
-  if (emMCP_event != emMCP_EVENT_NONE)
-  { // 如果有事件发生
+  if (emMCP_event != emMCP_EVENT_NONE && text_param != NULL)
+  { // 如果有事件发生且缓冲区有效
 
-    if (*param_type == MCP_SERVER_TOOL_TYPE_STRING)   // 如果参数类型为字符串
-      strcpy(text_param, msgType_param->valuestring); // 复制字符串值
-    else
+    if (*param_type == MCP_SERVER_TOOL_TYPE_STRING && msgType_param != NULL && msgType_param->valuestring != NULL)
+    {                                                       // 如果参数类型为字符串
+      strncpy(text_param, msgType_param->valuestring, 255); // 复制字符串值
+    }
+    else if (msgType_param != NULL)
     { // 否则
       char *param_str =
           cJSON_PrintUnformatted(msgType_param); // 将参数转为字符串
-      strcpy(text_param, param_str);             // 复制参数字符串
-      cJSON_free(param_str);                     // 释放参数字符串内存
+      if (param_str != NULL)
+      {
+        strncpy(text_param, param_str, 255); // 复制参数字符串
+        cJSON_free(param_str);               // 释放参数字符串内存
+      }
     }
+    text_param[255] = '\0'; // 确保字符串结束
   }
   cJSON_Delete(root); // 删除JSON对象
   return emMCP_event; // 返回事件类型
@@ -681,7 +736,10 @@ static emMCP_event_t emMCP_ReturnEvent(
  */
 void emMCP_UpdateUartRecv(bool isRecv)
 {
-  emMCP_dev->isUartRecv = isRecv;
+  if (emMCP_dev != NULL)
+  {
+    emMCP_dev->isUartRecv = isRecv;
+  }
 } // 更新串口接收状态标志
 
 /**
@@ -689,8 +747,18 @@ void emMCP_UpdateUartRecv(bool isRecv)
  *
  * @param delay_ms 延时时间
  */
+// 内存优化：调试变量可通过定义 EMCP_ENABLE_DEBUG_VARS 启用
+#ifdef EMCP_ENABLE_DEBUG_VARS
+volatile uint32_t g_emMCP_tick_count = 0;
+volatile uint32_t g_emMCP_process_count = 0;
+#endif
+
 void emMCP_TickHandle(int delay_ms)
 { // emMCP主循环处理函数
+#ifdef EMCP_ENABLE_DEBUG_VARS
+  g_emMCP_tick_count++;
+#endif
+  
   if (emMCP_dev == NULL ||
       emMCP_dev->tools_arry == NULL || // 检查设备、工具数组和回调函数是否有效
       emMCP_dev->emMCPEventCallback == NULL)
@@ -702,11 +770,40 @@ void emMCP_TickHandle(int delay_ms)
   {                        // 如果延时时间发生变化
     delay_time = delay_ms; // 更新延时时间
   }
+  
+  // 检查是否有新数据（从中断安全的双缓冲区获取）
+  char *rx_data = uartPortGetRxData();
+  if (rx_data != NULL)
+  {
+    // 将数据复制到 uart_data_buf 进行解析
+    size_t data_len = strlen(rx_data);
+    if (uart_data_buf != NULL)
+    {
+      emMCP_free(uart_data_buf);
+      uart_data_buf = NULL;
+    }
+    uart_data_buf = (char *)emMCP_malloc(data_len + 1);
+    if (uart_data_buf != NULL)
+    {
+      memcpy(uart_data_buf, rx_data, data_len + 1);
+      emMCP_dev->isUartRecv = 1;
+    }
+    // 标记数据已处理，允许中断接收新数据
+    uartPortClearRxData();
+  }
+  
   if (emMCP_dev->isUartRecv)
   { // 如果串口有数据接收
     mcp_server_tool_type_t _param_type =
-        MCP_SERVER_TOOL_TYPE_STRING;                   // 初始化参数类型
-    char *uart_data_paramp = emMCP_malloc(256);        // 分配参数缓冲区内存
+        MCP_SERVER_TOOL_TYPE_STRING;            // 初始化参数类型
+    char *uart_data_paramp = emMCP_malloc(256); // 分配参数缓冲区内存
+    if (uart_data_paramp == NULL)
+    {                               // 检查内存分配是否成功
+      emMCP_log_error("Failed to allocate uart_data_paramp");
+      emMCP_dev->isUartRecv = 0;  // 重置接收标志
+      emMCP_event = emMCP_EVENT_NONE;
+      return;
+    }
     memset(uart_data_paramp, 0, 256);                  // 清零参数缓冲区
     emMCP_ReturnEvent(&_param_type, uart_data_paramp); // 解析串口数据并获取事件
     emMCP_dev->emMCPEventCallback(emMCP_event, _param_type,
@@ -714,8 +811,15 @@ void emMCP_TickHandle(int delay_ms)
     emMCP_dev->isUartRecv = 0;                       // 重置接收标志
     emMCP_event = emMCP_EVENT_NONE;                  // 重置事件为无事件
     emMCP_free(uart_data_paramp);                    // 释放参数缓冲区内存
+    // 清零 UART 数据缓冲区，防止残留数据影响下次接收
+    if (uart_data_buf != NULL)
+    {
+      uart_data_buf[0] = '\0';
+    }
   }
 }
+// 内存优化：可选功能，通过定义 EMCP_ENABLE_EXTRA_CMDS 启用
+#ifdef EMCP_ENABLE_EXTRA_CMDS
 /**
  * @brief 设置通讯波特率
  *
@@ -738,9 +842,6 @@ int emMCP_SetBaudrate(uint16_t baudrate)
 
   // 构造设置波特率的JSON命令
   sprintf(cmd, "baudrate-set {\"role\":\"MCU\",\"msgType\":\"status\",\"data\":%d}\r\n", baudrate);
-  // 注释掉的备选实现方式
-  // snprintf(cmd, 128, "baudrate-set
-  // {\"role\":\"MCU\",\"msgType\":\"status\",\"status\":%d}\r\n", baudrate);
 
   // 通过串口发送命令
   uartPortSendData(cmd, strlen(cmd));
@@ -777,11 +878,6 @@ int emMCP_SetAiWakeUp(uint8_t WakeUp_Time)
 
   // 构造唤醒命令的JSON格式
   sprintf(cmd, "wake-up {\"role\":\"MCU\",\"msgType\":\"wake-up\",\"data\":%d}\r\n", WakeUp_Time);
-
-  // 注释掉的备选实现方式
-  // snprintf(cmd, 128, "wake-up
-  // {\"role\":\"MCU\",\"msgType\":\"wake-up\",\"wake-up\":%d}\r\n",
-  // WakeUp_Time);
 
   // 通过串口发送命令，并获取返回值
   int ret = uartPortSendData(cmd, strlen(cmd));
@@ -848,6 +944,7 @@ uint8_t emMCP_CheckAiVolume(void)
   }
   return emMCP_AiVolume;
 }
+#endif /* EMCP_ENABLE_EXTRA_CMDS */
 /**
  * @brief emMCP 响应控制结果
  *
