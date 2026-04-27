@@ -34,6 +34,8 @@ extern "C" {
 // 项目日志头文件
 #include "log.h"
 
+#define EMCP_ENABLE_EXTRA_CMDS 1
+
 #define emMCP_printf    log_printf
 #define emMCP_malloc    pvPortMalloc
 #define emMCP_free      vPortFree

@@ -1,96 +1,110 @@
-#include "Key.h"
-#include <main.h>
-#include <stdio.h>
+#include "axk_key.h"
+#include "main.h"
 #include <stdint.h>
-#include "cmsis_os.h"
 #include "axk_ssd1306.h"
 #include "cmsis_os2.h"
-#include "ina226.h"
-#include "stm32f1xx_hal_gpio.h"
+#include "axk_ina226.h"
 
 extern osMessageQueueId_t BtnQueueHandle;
 
-/**
- * @brief 检查按键状态并将按键编号发送到消息队列
- * 
- * 功能描述：
- * - 检查三个按键的状态（切换键、增加键、减小键）
- * - 消抖处理，确保按键稳定后再读取状态
- * - 将按键编号通过消息队列发送出去
+
+/*
+ * axk_key_scan：检查按键状态并发送按键编号到消息队列
+ * @brief  检查三个按键状态，消抖处理后通过消息队列发送按键编号
+ * @param  无
+ * @return 无
+ * @note   消抖时间 10ms，等待松开间隔 20ms
+ * @author Master_Yang
+ * @date   2026-04-27
  */
-void KEY_NUM(void) {
+void axk_key_scan(void)
+{
     uint8_t btn_num = 0;
 
-    // 检查按键 1 (切换键)
     if (HAL_GPIO_ReadPin(SwitchKey_GPIO_Port, SwitchKey_Pin) == GPIO_PIN_RESET) {
-        osDelay(10); // 消抖处理
+        osDelay(10);
+
         if (HAL_GPIO_ReadPin(SwitchKey_GPIO_Port, SwitchKey_Pin) == GPIO_PIN_RESET) {
             btn_num = 1;
-            osMessageQueuePut(BtnQueueHandle, &btn_num, 0, 0); 
+            osMessageQueuePut(BtnQueueHandle, &btn_num, 0, 0);
+
             while (HAL_GPIO_ReadPin(SwitchKey_GPIO_Port, SwitchKey_Pin) == GPIO_PIN_RESET) {
-                osDelay(20); // 等待松开，20ms 检查一次即可，节省 CPU
+                osDelay(20);
             }
         }
     }
 
-    // 检查按键 2 (增加键)
     if (HAL_GPIO_ReadPin(UpKey_GPIO_Port, UpKey_Pin) == GPIO_PIN_RESET) {
         osDelay(10);
+
         if (HAL_GPIO_ReadPin(UpKey_GPIO_Port, UpKey_Pin) == GPIO_PIN_RESET) {
             btn_num = 2;
             osMessageQueuePut(BtnQueueHandle, &btn_num, 0, 0);
+
             while (HAL_GPIO_ReadPin(UpKey_GPIO_Port, UpKey_Pin) == GPIO_PIN_RESET) {
                 osDelay(20);
             }
         }
     }
 
-    // 检查按键 3 (减小键)
-    else if (HAL_GPIO_ReadPin(NextKey_GPIO_Port, NextKey_Pin) == GPIO_PIN_RESET) {
+    if (HAL_GPIO_ReadPin(NextKey_GPIO_Port, NextKey_Pin) == GPIO_PIN_RESET) {
         osDelay(10);
+
         if (HAL_GPIO_ReadPin(NextKey_GPIO_Port, NextKey_Pin) == GPIO_PIN_RESET) {
             btn_num = 3;
             osMessageQueuePut(BtnQueueHandle, &btn_num, 0, 0);
+
             while (HAL_GPIO_ReadPin(NextKey_GPIO_Port, NextKey_Pin) == GPIO_PIN_RESET) {
                 osDelay(20);
             }
         }
     }
-} 
+}
 
-/**
- * @brief 控制输出状态
- * 
- * @param num 输出控制编号：
- * - 0：关闭输出
- * - 1：开启输出
- * - 2：翻转输出状态
+
+/*
+ * axk_key_output：控制输出状态
+ * @brief  通过GPIO控制设备输出开关
+ * @param  num：输出控制编号，0：关闭，1：开启，2：翻转
+ * @return 无
+ * @note   参数非法时直接返回
+ * @author Master_Yang
+ * @date   2026-04-27
  */
-void KEY_Output(uint8_t num) {
+void axk_key_output(uint8_t num)
+{
+    if (num > 2) {
+        return;
+    }
+
     switch (num) {
-        case 0: // 设置关
+        case 0:
             HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_RESET);
-            break;    
-        case 1: // 设置开
+            break;
+        case 1:
             HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5, GPIO_PIN_SET);
             break;
-        case 2: // 翻转
+        case 2:
             HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_5);
             break;
     }
 }
 
-/**
- * @brief 显示当前输出状态
- * 
- * 功能描述：
- * - 在 OLED 屏幕上显示当前输出状态（开/关）
+
+/*
+ * axk_key_state：显示当前输出状态
+ * @brief  在 OLED 屏幕上显示当前输出状态（开/关）
+ * @param  无
+ * @return 无
+ * @note   无
+ * @author Master_Yang
+ * @date   2026-04-27
  */
-void KEY_state(void) {
+void axk_key_state(void)
+{
     if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5) == GPIO_PIN_SET) {
         axk_ssd1306_show_utf8_str(72, 6, "开");
     } else {
         axk_ssd1306_show_utf8_str(72, 6, "关");
     }
 }
-

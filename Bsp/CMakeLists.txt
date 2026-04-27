@@ -9,7 +9,7 @@ ${CMAKE_CURRENT_SOURCE_DIR}/i2c/*.c
 )
 target_sources(bsp INTERFACE ${COMPONENT_SRC_FILES})
 
-target_include_directories(bsp INTERFACE 
+target_include_directories(bsp INTERFACE
 ${CMAKE_CURRENT_SOURCE_DIR}/spi
 ${CMAKE_CURRENT_SOURCE_DIR}/delay
 ${CMAKE_CURRENT_SOURCE_DIR}/i2c

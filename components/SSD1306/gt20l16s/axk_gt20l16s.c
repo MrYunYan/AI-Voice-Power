@@ -10,8 +10,6 @@
  */
 #include "axk_gt20l16s.h"
 #include <string.h>
-#include <sys/_intsup.h>
-#include <sys/_types.h>
 /**
  * @brief 向GT20L16S写入命令
  *
