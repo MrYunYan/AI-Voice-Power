@@ -115,11 +115,11 @@ void emMCP_SetVoltageHandler(void *arg)
                 if (axk_ch224_set_pps_vout(target_voltage) == 0) {
                     sys_ctrl.is_pps = 1;
                     sys_ctrl.target_v = target_voltage;
-                    int voltage_int = (int)target_voltage;
-                    int voltage_frac = (int)((target_voltage - voltage_int) * 10);
-                    if (voltage_frac < 0) voltage_frac = -voltage_frac;
+                    int voltage_decivolts = (int)(target_voltage * 10.0f + 0.5f);
+                    int voltage_int = voltage_decivolts / 10;
+                    int voltage_frac = voltage_decivolts % 10;
                     char response_str[64];
-                    sprintf(response_str, "{\"voltage_value\":\"%d.%01d\"}", voltage_int, voltage_frac);
+                    sprintf(response_str, "{\"voltage_value\":\"%d.%d\"}", voltage_int, voltage_frac);
                     emMCP_ResponseValue(response_str);
                 }
             }
@@ -141,10 +141,10 @@ void emMCP_GetVoltageHandler(void *arg)
     } else {
         voltage_to_report = sys_ctrl.real_v;
     }
-    int voltage_int = (int)voltage_to_report;
-    int voltage_frac = (int)((voltage_to_report - voltage_int) * 10);
-    if (voltage_frac < 0) voltage_frac = -voltage_frac;
-    sprintf(response_str, "{\"voltage_value\":\"%d.%01d\"}", voltage_int, voltage_frac);
+    int voltage_decivolts = (int)(voltage_to_report * 10.0f + 0.5f);
+    int voltage_int = voltage_decivolts / 10;
+    int voltage_frac = voltage_decivolts % 10;
+    sprintf(response_str, "{\"voltage_value\":\"%d.%d\"}", voltage_int, voltage_frac);
     emMCP_ResponseValue(response_str);
 }
 
@@ -156,26 +156,26 @@ void emMCP_GetVoltageHandler(void *arg)
  */
 void emMCP_GetOutputParamsHandler(void *arg)
 {
-    cJSON *param = (cJSON *)arg;
-    cJSON *current_item = cJSON_GetObjectItem(param, "current_value");
-    cJSON *power_item = cJSON_GetObjectItem(param, "power_value");
-    
+    (void)arg; // 查询回调无需解析参数
+
     float current = INA226_GetCurrent(&my_power_monitor);
     float power = INA226_GetPower(&my_power_monitor);
-    
-    // 处理电流值（保留3位小数）
-    int current_int = (int)current;
-    int current_frac = (int)((current - current_int) * 1000);
+
+    // 处理电流值（保留3位小数，四舍五入）
+    int current_milliamps = (int)(current * 1000.0f + 0.5f);
+    int current_int = current_milliamps / 1000;
+    int current_frac = current_milliamps % 1000;
     if (current_frac < 0) current_frac = -current_frac;
-    
-    // 处理功率值（保留3位小数）
-    int power_int = (int)power;
-    int power_frac = (int)((power - power_int) * 1000);
+
+    // 处理功率值（保留3位小数，四舍五入）
+    int power_milliwatts = (int)(power * 1000.0f + 0.5f);
+    int power_int = power_milliwatts / 1000;
+    int power_frac = power_milliwatts % 1000;
     if (power_frac < 0) power_frac = -power_frac;
-    
+
     // 构建响应JSON，同时返回电流和功率
     char response_str[128];
-    sprintf(response_str, "{\"current_value\":\"%d.%03d\",\"power_value\":\"%d.%03d\"}", 
+    sprintf(response_str, "{\"current_value\":\"%d.%03d\",\"power_value\":\"%d.%03d\"}",
             current_int, current_frac, power_int, power_frac);
     emMCP_ResponseValue(response_str);
 }
