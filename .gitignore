@@ -1,3 +1,8 @@
 build
 mx.scratch
-!.settings
+
+# IDE 临时文件
+.settings/
+.vscode/
+.mxproject
+*.ioc
