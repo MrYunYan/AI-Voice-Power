@@ -167,7 +167,7 @@ openocd -f openocd.cfg -c "init; program build/Debug/AXK_AiPowerSupply.elf verif
 
 ### 4. AI 模组配网
 
-1. 烧录 Ai-WV01-32S 的 UART-MCP 固件（`AiPi-PalChatV1_WWXH_Zh_UART-MCP_V3.3.bin`）
+1. 烧录 Ai-WV01-32S 的 UART-MCP 固件（`AiPi-PalChatV1_WWXH-Zh_UART-MCP_V3.4.bin`）
 2. 上电后说"开始配网"，用「安信可IOT」小程序连接 2.4G WiFi
 3. 访问 [xiaozhi.me](https://xiaozhi.me) 控制台，输入智能体分享码 **`A9nCXwwr6L`**，绑定设备
 
@@ -176,11 +176,6 @@ openocd -f openocd.cfg -c "init; program build/Debug/AXK_AiPowerSupply.elf verif
 ## 📜 编码规范
 
 本项目遵循 AXK 嵌入式 C 语言编码规范，详见 [docs/编码规范.md](docs/编码规范.md)。
-
-核心要求：
-- 所有函数必须添加 `axk_` 前缀函数头注释
-- 命名：函数 `axk_` snake_case，宏 `AXK_` UPPER_CASE，枚举 `Axk` CamelCase
-- 缩进 4 空格，禁止 Tab
 
 ---
 
@@ -206,8 +201,3 @@ PCB 源文件、BOM、原理图见立创开源平台：[工程链接](https://os
 
 ---
 
-## 🙏 致谢
-
-- 安信可科技开源团队 — Ai-WV01-32S 模组及 UART-MCP 固件
-- 立创开源硬件平台 — 硬件工程托管
-- STMicroelectronics — STM32 HAL 库
