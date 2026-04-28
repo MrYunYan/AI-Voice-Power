@@ -1,5 +1,5 @@
 /**
- * @file ch224_i2c.h
+ * @file axk_ch224.h
  * @author SeaHi-Mo (Seahi-Mo@Foxmail.com)
  * @brief
  * @version 0.1
@@ -19,9 +19,9 @@
 #if __has_include("axk_bsp_i2c.h")
 #include "axk_bsp_i2c.h"
 // 定义I2C延时函数
-#define AXK_CH224_DELAY_MS(x) delay_ms(x)
+#define AXK_CH224_DELAY_MS(x) AXK_DELAY_MS(x)
 // 定义I2C操作函数
-#define AXK_CH224_I2C_ACLL(_func, ...) bsp_i2c_##_func(__VA_ARGS__)
+#define AXK_CH224_I2C_ACLL(_func, ...) axk_bsp_i2c_##_func(__VA_ARGS__)
 #pragma message "axk_bsp_i2c.h included for CH224 I2C operations"
 #else
 #error "Please include the appropriate I2C header for CH224."

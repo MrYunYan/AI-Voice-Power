@@ -32,11 +32,11 @@ extern "C" {
 #include "usart.h"
 
 // 项目日志头文件
-#include "log.h"
+#include "axk_log.h"
 
 #define EMCP_ENABLE_EXTRA_CMDS 1
 
-#define emMCP_printf    log_printf
+#define emMCP_printf    axk_log_printf
 #define emMCP_malloc    pvPortMalloc
 #define emMCP_free      vPortFree
 #define emMCP_delay     osDelay

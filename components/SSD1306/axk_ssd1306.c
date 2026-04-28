@@ -598,7 +598,7 @@ void axk_ssd1306_init(void)
 /* ==================================================================
  * 字库芯片相关函数
  * ================================================================== */
-unsigned int fontaddr = 0;
+unsigned int g_axk_fontaddr = 0;
 
 /*
  * axk_ssd1306_display_data_form_font_chip：从字库芯片读取 16x16 数据并显示
@@ -698,25 +698,25 @@ void axk_ssd1306_show_gb2312_str(unsigned char x, unsigned char y, char *str)
 
     while (str[i] > 0x00) {
         if ((str[i] >= 0xB0) && (str[i] <= 0xF7) && (str[i + 1] >= 0xA1)) {
-            fontaddr = (str[i] - 0xB0) * 94;
-            fontaddr += (str[i + 1] - 0xA1) + 846;
-            fontaddr = fontaddr * 32;
-            addr_high = (fontaddr & 0xFF0000) >> 16;
-            addr_mid  = (fontaddr & 0xFF00) >> 8;
-            addr_low  = (fontaddr & 0xFF);
+            g_axk_fontaddr = (str[i] - 0xB0) * 94;
+            g_axk_fontaddr += (str[i + 1] - 0xA1) + 846;
+            g_axk_fontaddr = g_axk_fontaddr * 32;
+            addr_high = (g_axk_fontaddr & 0xFF0000) >> 16;
+            addr_mid  = (g_axk_fontaddr & 0xFF00) >> 8;
+            addr_low  = (g_axk_fontaddr & 0xFF);
 
             axk_gt20l16s_get_fonts_form_rom(addr_high, addr_mid, addr_low, fontbuf, 32);
             axk_ssd1306_display_data_form_font_chip(x, y, fontbuf);
             x += 16;
             i += 2;
         } else if ((str[i] >= 0xA1) && (str[i] <= 0xA3) && (str[i + 1] >= 0xA1)) {
-            fontaddr = (str[i] - 0xA1) * 94;
-            fontaddr += (str[i + 1] - 0xA1);
-            fontaddr = fontaddr * 32;
+            g_axk_fontaddr = (str[i] - 0xA1) * 94;
+            g_axk_fontaddr += (str[i + 1] - 0xA1);
+            g_axk_fontaddr = g_axk_fontaddr * 32;
 
-            addr_high = (fontaddr & 0xFF0000) >> 16;
-            addr_mid  = (fontaddr & 0xFF00) >> 8;
-            addr_low  = (fontaddr & 0xFF);
+            addr_high = (g_axk_fontaddr & 0xFF0000) >> 16;
+            addr_mid  = (g_axk_fontaddr & 0xFF00) >> 8;
+            addr_low  = (g_axk_fontaddr & 0xFF);
 
             axk_gt20l16s_get_fonts_form_rom(addr_high, addr_mid, addr_low, fontbuf, 32);
             axk_ssd1306_display_data_form_font_chip(x, y, fontbuf);
@@ -725,13 +725,13 @@ void axk_ssd1306_show_gb2312_str(unsigned char x, unsigned char y, char *str)
         } else if ((str[i] >= 0x20) && (str[i] <= 0x7E)) {
             unsigned char fontbuf_asc[16];
 
-            fontaddr = (str[i] - 0x20);
-            fontaddr = (unsigned long)(fontaddr * 16);
-            fontaddr = (unsigned long)(fontaddr + 0x3CF80);
+            g_axk_fontaddr = (str[i] - 0x20);
+            g_axk_fontaddr = (unsigned long)(g_axk_fontaddr * 16);
+            g_axk_fontaddr = (unsigned long)(g_axk_fontaddr + 0x3CF80);
 
-            addr_high = (fontaddr & 0xFF0000) >> 16;
-            addr_mid  = (fontaddr & 0xFF00) >> 8;
-            addr_low  = fontaddr & 0xFF;
+            addr_high = (g_axk_fontaddr & 0xFF0000) >> 16;
+            addr_mid  = (g_axk_fontaddr & 0xFF00) >> 8;
+            addr_low  = g_axk_fontaddr & 0xFF;
 
             axk_gt20l16s_get_fonts_form_rom(addr_high, addr_mid, addr_low, fontbuf_asc, 16);
             axk_ssd1306_display_data_form_font_chip_8x16(x, y, fontbuf_asc);

@@ -9,7 +9,7 @@
  *
  */
 #include "emMCP.h"
-#include "log.h"
+#include "axk_log.h"
 #include "uartPort.h"
 #include <stddef.h>
 #include <stdio.h>

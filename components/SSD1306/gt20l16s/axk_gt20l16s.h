@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2026
  *
  */
-#ifndef __AXK_GT20L16S_H__
-#define __AXK_GT20L16S_H__
+#ifndef AXK_GT20L16S_H
+#define AXK_GT20L16S_H
 
 #if __has_include("stm32f10x_bsp_spi.h")
 #include "stm32f10x_bsp_spi.h"

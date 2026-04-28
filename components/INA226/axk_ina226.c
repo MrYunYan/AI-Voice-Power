@@ -13,29 +13,29 @@
  */
 uint8_t axk_ina226_write_reg(uint8_t reg, uint16_t data)
 {
-    bsp_i2c_start();
+    axk_bsp_i2c_start();
 
-    bsp_i2c_send_byte(AXK_INA226_ADDR_WRITE);
-    if (bsp_i2c_wait_ack() != 0) {
+    axk_bsp_i2c_send_byte(AXK_INA226_ADDR_WRITE);
+    if (axk_bsp_i2c_wait_ack() != 0) {
         return 1;
     }
 
-    bsp_i2c_send_byte(reg);
-    if (bsp_i2c_wait_ack() != 0) {
+    axk_bsp_i2c_send_byte(reg);
+    if (axk_bsp_i2c_wait_ack() != 0) {
         return 1;
     }
 
-    bsp_i2c_send_byte((uint8_t)(data >> 8));
-    if (bsp_i2c_wait_ack() != 0) {
+    axk_bsp_i2c_send_byte((uint8_t)(data >> 8));
+    if (axk_bsp_i2c_wait_ack() != 0) {
         return 1;
     }
 
-    bsp_i2c_send_byte((uint8_t)(data & 0xFF));
-    if (bsp_i2c_wait_ack() != 0) {
+    axk_bsp_i2c_send_byte((uint8_t)(data & 0xFF));
+    if (axk_bsp_i2c_wait_ack() != 0) {
         return 1;
     }
 
-    bsp_i2c_stop();
+    axk_bsp_i2c_stop();
 
     return 0;
 }
@@ -56,30 +56,30 @@ uint8_t axk_ina226_read_reg(uint8_t reg, uint16_t *data)
     uint8_t data_h = 0;
     uint8_t data_l = 0;
 
-    bsp_i2c_start();
-    bsp_i2c_send_byte(AXK_INA226_ADDR_WRITE);
-    if (bsp_i2c_wait_ack() != 0) {
+    axk_bsp_i2c_start();
+    axk_bsp_i2c_send_byte(AXK_INA226_ADDR_WRITE);
+    if (axk_bsp_i2c_wait_ack() != 0) {
         return 1;
     }
 
-    bsp_i2c_send_byte(reg);
-    if (bsp_i2c_wait_ack() != 0) {
+    axk_bsp_i2c_send_byte(reg);
+    if (axk_bsp_i2c_wait_ack() != 0) {
         return 1;
     }
 
-    bsp_i2c_start();
-    bsp_i2c_send_byte(AXK_INA226_ADDR_READ);
-    if (bsp_i2c_wait_ack() != 0) {
+    axk_bsp_i2c_start();
+    axk_bsp_i2c_send_byte(AXK_INA226_ADDR_READ);
+    if (axk_bsp_i2c_wait_ack() != 0) {
         return 1;
     }
 
-    data_h = bsp_i2c_read_byte();
-    bsp_i2c_send_ack(0);
+    data_h = axk_bsp_i2c_read_byte();
+    axk_bsp_i2c_send_ack(0);
 
-    data_l = bsp_i2c_read_byte();
-    bsp_i2c_send_ack(1);
+    data_l = axk_bsp_i2c_read_byte();
+    axk_bsp_i2c_send_ack(1);
 
-    bsp_i2c_stop();
+    axk_bsp_i2c_stop();
 
     *data = ((uint16_t)data_h << 8) | data_l;
 
@@ -138,7 +138,7 @@ uint8_t axk_ina226_init(AxkIna226Device *dev, float r_shunt, float max_current)
     }
 
     dev->r_shunt = r_shunt;
-    bsp_i2c_init();
+    axk_bsp_i2c_init();
 
     if (axk_ina226_check_id() != 0) {
         return 1;

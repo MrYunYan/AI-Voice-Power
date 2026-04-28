@@ -1,124 +1,144 @@
 /**
- * @file axk_gt20l16s.c
- * @author SeaHi-Mo (Seahi-Mo@Foxmail.com)
- * @brief
- * @version 0.1
- * @date 2026-02-06
- *
- * @copyright Copyright (c) 2026
- *
+ * @file   axk_gt20l16s.c
+ * @brief  GT20L16S 字库芯片驱动 — ROM 读取与字符编码转换
+ * @author Master_Yang
+ * @date   2026-02-06
  */
+
 #include "axk_gt20l16s.h"
 #include <string.h>
-/**
- * @brief 向GT20L16S写入命令
- *
- * @param cmd 要写入的命令
+
+/*
+ * axk_gt20l16s_write_cmd：向 GT20L16S 写入命令
+ * @brief  通过 SPI 发送命令字节到字库芯片
+ * @param  cmd：要写入的命令字节
+ * @return 无
+ * @note   静态函数，仅本文件内可调用
+ * @author Master_Yang
+ * @date   2026-02-06
  */
-static void axk_gt20l16s_write_cmd(unsigned char cmd) {
-  AXK_GT20L16S_ACLL(transmit, cmd, 100);
+static void axk_gt20l16s_write_cmd(unsigned char cmd)
+{
+    AXK_GT20L16S_ACLL(transmit, cmd, 100);
 }
-/**
- * @brief 读取GT20L16S的ROM数据
- *
- * @return unsigned char 读取到的ROM数据
+
+/*
+ * axk_gt20l16s_read_rom：读取 GT20L16S 的 ROM 数据
+ * @brief  通过 SPI 从字库芯片读取一个字节
+ * @param  无
+ * @return 读取到的 ROM 数据字节
+ * @note   静态函数，仅本文件内可调用
+ * @author Master_Yang
+ * @date   2026-02-06
  */
-static unsigned char axk_gt20l16s_read_rom(void) {
-  unsigned char rom_data = 0;
-  AXK_GT20L16S_ACLL(receive, &rom_data);
-  return rom_data;
+static unsigned char axk_gt20l16s_read_rom(void)
+{
+    unsigned char rom_data = 0;
+    AXK_GT20L16S_ACLL(receive, &rom_data);
+    return rom_data;
 }
-/**
- * @brief 从GT20L16S的ROM中读取字体数据
- *
- * @param addrHigh 高地址字节
- * @param addrMid 中地址字节
- * @param addrLow 低地址字节
- * @param pbuff 存储字体数据的缓冲区
- * @param DataLen 要读取的字体数据长度
+
+/*
+ * axk_gt20l16s_get_fonts_form_rom：从 GT20L16S ROM 读取字体数据
+ * @brief  根据地址从字库芯片读取指定长度的点阵数据
+ * @param  addrHigh：高地址字节
+ * @param  addrMid：中地址字节
+ * @param  addrLow：低地址字节
+ * @param  pbuff：存储字体数据的缓冲区指针（输出参数，不可为空）
+ * @param  DataLen：要读取的字体数据长度
+ * @return 无
+ * @note   pbuff 为 NULL 时直接返回
+ * @author Master_Yang
+ * @date   2026-02-06
  */
 void axk_gt20l16s_get_fonts_form_rom(unsigned char addrHigh,
                                      unsigned char addrMid,
                                      unsigned char addrLow,
                                      unsigned char *pbuff,
-                                     unsigned char DataLen) {
-  unsigned char i;
-  if (pbuff == NULL)
-    return;
-  unsigned char *p = pbuff;
-  AXK_GT20L16S_ACLL(user_cs_reset);
-  axk_gt20l16s_write_cmd(0x03);
-  axk_gt20l16s_write_cmd(addrHigh);
-  axk_gt20l16s_write_cmd(addrMid);
-  axk_gt20l16s_write_cmd(addrLow);
+                                     unsigned char DataLen)
+{
+    unsigned char i;
+    if (pbuff == NULL)
+        return;
+    unsigned char *p = pbuff;
+    AXK_GT20L16S_ACLL(user_cs_reset);
+    axk_gt20l16s_write_cmd(0x03);
+    axk_gt20l16s_write_cmd(addrHigh);
+    axk_gt20l16s_write_cmd(addrMid);
+    axk_gt20l16s_write_cmd(addrLow);
 
-  for (i = 0; i < DataLen; i++) {
-    *(p + i) = axk_gt20l16s_read_rom();
-  }
-  AXK_GT20L16S_ACLL(user_cs_set);
+    for (i = 0; i < DataLen; i++) {
+        *(p + i) = axk_gt20l16s_read_rom();
+    }
+    AXK_GT20L16S_ACLL(user_cs_set);
 }
 
-unsigned unicode_to_gb2312_fontaddr(unsigned int unicode) {
-  unsigned int baseAddr, decodeAddr = 0;
+unsigned unicode_to_gb2312_fontaddr(unsigned int unicode)
+{
+    unsigned int baseAddr, decodeAddr = 0;
 
-  if (unicode <= 0x3017 && unicode >= 0x3000)
-    baseAddr = 0x1d9e5;
-  else if (unicode <= 0x9fa5 && unicode >= 0x4e00)
-    baseAddr = 0x1bfbb;
-  else if (unicode <= 0xfe6b && unicode >= 0xfe30)
-    baseAddr = 0x16131;
-  else if (unicode <= 0xff5e && unicode >= 0xff01)
-    baseAddr = 0x1609c;
-  else if (unicode <= 0xffe5 && unicode >= 0xffe0)
-    baseAddr = 0x1601b;
-  else
-    baseAddr = 0;
-  if (baseAddr != 0) {
-    decodeAddr = (unicode + baseAddr) * 2;
-  }
-  return decodeAddr;
+    if (unicode <= 0x3017 && unicode >= 0x3000)
+        baseAddr = 0x1d9e5;
+    else if (unicode <= 0x9fa5 && unicode >= 0x4e00)
+        baseAddr = 0x1bfbb;
+    else if (unicode <= 0xfe6b && unicode >= 0xfe30)
+        baseAddr = 0x16131;
+    else if (unicode <= 0xff5e && unicode >= 0xff01)
+        baseAddr = 0x1609c;
+    else if (unicode <= 0xffe5 && unicode >= 0xffe0)
+        baseAddr = 0x1601b;
+    else
+        baseAddr = 0;
+    if (baseAddr != 0) {
+        decodeAddr = (unicode + baseAddr) * 2;
+    }
+    return decodeAddr;
 }
-unsigned int utf8_to_unicode(const char *str, unsigned char *byte_len) {
-  unsigned char c = (unsigned char)*str;
-  if (c < 0x80) { // 单字节ASCII
-    *byte_len = 1;
-    return c;
-  } else if ((c & 0xE0) == 0xC0) { // 双字节（110xxxxx）
-    *byte_len = 2;
-    return ((c & 0x1F) << 6) | (str[1] & 0x3F);
-  } else if ((c & 0xF0) == 0xE0) { // 三字节（1110xxxx）
-    *byte_len = 3;
-    return ((c & 0x0F) << 12) | ((str[1] & 0x3F) << 6) | (str[2] & 0x3F);
-  } else { // 无效字符
-    *byte_len = 1;
-    return 0;
-  }
+
+unsigned int utf8_to_unicode(const char *str, unsigned char *byte_len)
+{
+    unsigned char c = (unsigned char)*str;
+    if (c < 0x80) {     // 单字节ASCII
+        *byte_len = 1;
+        return c;
+    } else if ((c & 0xE0) == 0xC0) {   // 双字节（110xxxxx）
+        *byte_len = 2;
+        return ((c & 0x1F) << 6) | (str[1] & 0x3F);
+    } else if ((c & 0xF0) == 0xE0) {   // 三字节（1110xxxx）
+        *byte_len = 3;
+        return ((c & 0x0F) << 12) | ((str[1] & 0x3F) << 6) | (str[2] & 0x3F);
+    } else {    // 无效字符
+        *byte_len = 1;
+        return 0;
+    }
 }
-unsigned char isStrUTF8(const char *str, unsigned short int len) {
 
-  if (str == NULL || len < 1 || len > 4) {
-    return 0; // 长度无效
-  }
+unsigned char isStrUTF8(const char *str, unsigned short int len)
+{
+    if (str == NULL || len < 1 || len > 4) {
+        return 0;   // 长度无效
+    }
 
-  switch (len) {
-  case 1:
-    // 1字节：0xxxxxxx
-    return (str[0] & 0x80) == 0;
-  case 2:
-    // 2字节：110xxxxx 10xxxxxx
-    return (str[0] & 0xE0) == 0xC0     // 首字节前3位为110
-           && (str[1] & 0xC0) == 0x80; // 后续字节前2位为10
-  case 3:
-    // 3字节：1110xxxx 10xxxxxx 10xxxxxx
-    return (str[0] & 0xF0) == 0xE0    // 首字节前4位为1110
-           && (str[1] & 0xC0) == 0x80 // 后续字节前2位为10
-           && (str[2] & 0xC0) == 0x80;
-  case 4:
-    // 4字节：11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
-    return (str[0] & 0xF8) == 0xF0    // 首字节前5位为11110
-           && (str[1] & 0xC0) == 0x80 // 后续字节前2位为10
-           && (str[2] & 0xC0) == 0x80 && (str[3] & 0xC0) == 0x80;
-  default:
-    return 0;
-  }
+    switch (len) {
+    case 1:
+        // 1字节：0xxxxxxx
+        return (str[0] & 0x80) == 0;
+    case 2:
+        // 2字节：110xxxxx 10xxxxxx
+        return (str[0] & 0xE0) == 0xC0
+               && (str[1] & 0xC0) == 0x80;
+    case 3:
+        // 3字节：1110xxxx 10xxxxxx 10xxxxxx
+        return (str[0] & 0xF0) == 0xE0
+               && (str[1] & 0xC0) == 0x80
+               && (str[2] & 0xC0) == 0x80;
+    case 4:
+        // 4字节：11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
+        return (str[0] & 0xF8) == 0xF0
+               && (str[1] & 0xC0) == 0x80
+               && (str[2] & 0xC0) == 0x80
+               && (str[3] & 0xC0) == 0x80;
+    default:
+        return 0;
+    }
 }

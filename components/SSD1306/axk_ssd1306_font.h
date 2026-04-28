@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2026
  *
  */
-#ifndef __AXK_SSD1306_FONT_H_
-#define __AXK_SSD1306_FONT_H_
+#ifndef AXK_SSD1306_FONT_H
+#define AXK_SSD1306_FONT_H
 
 const unsigned char axk_asc2_0806[][6] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // sp
